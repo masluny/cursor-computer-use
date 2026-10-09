@@ -1,0 +1,71 @@
+# factual-research research plan: edit freely, then run `factual-research search`.
+
+[factual_research]
+version = 1
+created = "2026-10-08"
+
+[question]
+text = "How do state-of-the-art computer-use (GUI) agents achieve accurate and fast desktop control, and which techniques could improve a macOS MCP server combining accessibility tree, OCR and screenshots?"
+lang = "pl"
+packs = ["cs_ai"]
+since = 2022
+frame = "task, method, dataset/benchmark, metric"
+
+[criteria]
+include = [
+  "agents that operate graphical user interfaces (desktop, web or mobile) from screenshots, accessibility trees or both",
+  "GUI grounding / screen parsing models and methods (mapping instructions to screen elements or coordinates)",
+  "benchmarks and empirical evaluations of computer-use agents (success rates, failure analysis, efficiency)",
+  "techniques that reduce model calls or latency for GUI agents (multi-action, API calls, caching, memory, replay)",
+  "security of GUI/computer-use agents (prompt injection, pop-ups, unsafe actions)",
+]
+exclude = [
+  "physical robotics or embodied navigation",
+  "agents without a graphical interface (pure text/tool APIs, code agents)",
+  "UI design generation or UI code generation",
+  "position papers without method or evaluation",
+]
+languages = ["en", "pl"]
+
+[[subq]]
+id = "SQ1"
+text = "Perception and grounding: how do agents find the right element (screenshots, accessibility tree, hybrids, set-of-marks, grounding models, zooming)?"
+queries = [
+  "GUI agent accessibility tree screenshot",
+  "set-of-mark prompting GPT-4V",
+  "GUI grounding model screenshot",
+  "screen parsing vision GUI agent",
+  "high-resolution GUI grounding professional software",
+  "native GUI agent model",
+]
+
+[[subq]]
+id = "SQ2"
+text = "Speed and efficiency: what reduces the number of model calls and latency (multi-action execution, API-first actions, workflow memory, trajectory replay)?"
+queries = [
+  "desktop GUI agent API hybrid",
+  "GUI agent efficiency model calls",
+  "agent workflow memory web navigation",
+  "GUI agent trajectory replay",
+  "computer use agent latency",
+]
+
+[[subq]]
+id = "SQ3"
+text = "Reliability: how are computer-use agents evaluated (OSWorld, macOS, Windows benchmarks), where do they fail, and which methods (reflection, planning) improve success?"
+queries = [
+  "OSWorld benchmark multimodal agents",
+  "macOS GUI agent benchmark",
+  "Windows agent arena",
+  "computer use agent planning reflection",
+  "GUI agent failure analysis",
+]
+
+[[subq]]
+id = "SQ4"
+text = "Safety: what attacks and risks affect computer-use agents (prompt injection, pop-ups) and which defenses exist?"
+queries = [
+  "computer use agent prompt injection",
+  "pop-up attack vision language agent",
+  "GUI agent safety benchmark",
+]

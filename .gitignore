@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.DS_Store
+# research: full texts, caches and the local report (file:// links)
+research/.fr/
+research/sources/
+research/out/

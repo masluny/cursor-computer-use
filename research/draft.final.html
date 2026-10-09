@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="generator" content="factual-research 0.4.0">
+<meta name="description" content="Przegląd badań nad agentami sterującymi komputerem przez interfejs graficzny, z listą ulepszeń dla serwera MCP, który daje Grokowi w Cursorze dostęp do Maca.">
+<title>Agenci computer use: co działa i co z tego wziąć do cursor-computer-use</title>
+<style>
+/* factual-research article template. Tokens: design/article/tokens.css (Utopia scale 17px@360 -> 19px@1440, 1.2 -> 1.25). */
+:root{
+  --step--2:clamp(0.7378rem,0.7305rem + 0.0328vw,0.76rem);
+  --step--1:clamp(0.8854rem,0.8639rem + 0.0957vw,0.95rem);
+  --step-0:clamp(1.0625rem,1.0208rem + 0.1852vw,1.1875rem);
+  --step-1:clamp(1.275rem,1.2052rem + 0.3102vw,1.4844rem);
+  --step-2:clamp(1.53rem,1.4215rem + 0.4822vw,1.8555rem);
+  --step-3:clamp(1.836rem,1.6749rem + 0.7161vw,2.3193rem);
+  --step-4:clamp(2.2032rem,1.9712rem + 1.0311vw,2.8992rem);
+  --space-3xs:clamp(0.2656rem,0.2552rem + 0.0463vw,0.2969rem);
+  --space-2xs:clamp(0.5312rem,0.5104rem + 0.0926vw,0.5938rem);
+  --space-xs:clamp(0.7969rem,0.7656rem + 0.1389vw,0.8906rem);
+  --space-s:clamp(1.0625rem,1.0208rem + 0.1852vw,1.1875rem);
+  --space-m:clamp(1.5938rem,1.5312rem + 0.2778vw,1.7812rem);
+  --space-l:clamp(2.125rem,2.0417rem + 0.3704vw,2.375rem);
+  --space-xl:clamp(3.1875rem,3.0625rem + 0.5556vw,3.5625rem);
+  --space-s-l:clamp(1.0625rem,0.625rem + 1.9444vw,2.375rem);
+  --space-l-2xl:clamp(2.125rem,1.25rem + 3.8889vw,4.75rem);
+
+  --serif:Charter,"Bitstream Charter","Iowan Old Style","Sitka Text",Cambria,"Source Serif 4",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --measure:68ch;
+  --radius:6px;
+  --radius-l:10px;
+  --dur:120ms;
+
+  --bg:oklch(0.985 0.006 85);
+  --surface:oklch(1 0 0);
+  --sunken:oklch(0.965 0.008 85);
+  --text:oklch(0.24 0.015 260);
+  --muted:oklch(0.47 0.015 260);
+  --border:oklch(0.9 0.008 85);
+  --rule:oklch(0.84 0.01 85);
+  --accent:oklch(0.45 0.085 205);
+  --accent-soft:oklch(0.95 0.025 205);
+  --mark:oklch(0.95 0.06 95);
+  --c-high:oklch(0.42 0.1 150);   --c-high-bg:oklch(0.95 0.035 150);
+  --c-mod:oklch(0.45 0.085 205);  --c-mod-bg:oklch(0.95 0.025 205);
+  --c-low:oklch(0.47 0.11 65);    --c-low-bg:oklch(0.95 0.045 80);
+  --c-vlow:oklch(0.48 0.15 28);   --c-vlow-bg:oklch(0.95 0.03 28);
+  --shadow:0 1px 2px oklch(0.2 0.02 260 / .06),0 8px 24px oklch(0.2 0.02 260 / .1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:oklch(0.19 0.01 260);--surface:oklch(0.23 0.012 260);--sunken:oklch(0.215 0.011 260);
+  --text:oklch(0.93 0.008 85);--muted:oklch(0.72 0.012 260);--border:oklch(0.32 0.012 260);--rule:oklch(0.38 0.012 260);
+  --accent:oklch(0.78 0.09 200);--accent-soft:oklch(0.28 0.04 205);--mark:oklch(0.35 0.06 95);
+  --c-high:oklch(0.8 0.12 150);--c-high-bg:oklch(0.28 0.04 150);--c-mod:oklch(0.78 0.09 200);--c-mod-bg:oklch(0.28 0.04 205);
+  --c-low:oklch(0.82 0.12 75);--c-low-bg:oklch(0.3 0.05 70);--c-vlow:oklch(0.78 0.13 28);--c-vlow-bg:oklch(0.3 0.06 28);
+  --shadow:0 1px 2px oklch(0 0 0 / .3),0 10px 30px oklch(0 0 0 / .45);color-scheme:dark}}
+:root[data-theme=dark]{
+  --bg:oklch(0.19 0.01 260);--surface:oklch(0.23 0.012 260);--sunken:oklch(0.215 0.011 260);
+  --text:oklch(0.93 0.008 85);--muted:oklch(0.72 0.012 260);--border:oklch(0.32 0.012 260);--rule:oklch(0.38 0.012 260);
+  --accent:oklch(0.78 0.09 200);--accent-soft:oklch(0.28 0.04 205);--mark:oklch(0.35 0.06 95);
+  --c-high:oklch(0.8 0.12 150);--c-high-bg:oklch(0.28 0.04 150);--c-mod:oklch(0.78 0.09 200);--c-mod-bg:oklch(0.28 0.04 205);
+  --c-low:oklch(0.82 0.12 75);--c-low-bg:oklch(0.3 0.05 70);--c-vlow:oklch(0.78 0.13 28);--c-vlow-bg:oklch(0.3 0.06 28);
+  --shadow:0 1px 2px oklch(0 0 0 / .3),0 10px 30px oklch(0 0 0 / .45);color-scheme:dark}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:4.5rem;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 var(--step-0)/1.5 var(--serif);
+  font-kerning:normal;font-variant-numeric:oldstyle-nums proportional-nums;text-rendering:optimizeLegibility}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:.18em}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.skip{position:absolute;left:-999px;top:0;background:var(--surface);padding:.5rem 1rem;z-index:20}
+.skip:focus{left:1rem;top:.5rem}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:10;background:color-mix(in oklch,var(--bg) 92%,transparent);
+  border-bottom:1px solid var(--border);backdrop-filter:saturate(1.2) blur(6px);-webkit-backdrop-filter:saturate(1.2) blur(6px)}
+.bar-in{max-width:1180px;margin:auto;padding:.55rem var(--space-s-l);display:flex;align-items:center;gap:var(--space-s);
+  font:500 var(--step--1)/1.2 var(--sans)}
+.brand{display:flex;align-items:center;gap:.5rem;color:var(--text);text-decoration:none;letter-spacing:.01em}
+.brand svg{width:18px;height:18px;color:var(--accent)}
+.bar-title{flex:1;min-width:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;
+  transition:opacity var(--dur)}
+.bar.scrolled .bar-title{opacity:1}
+.tools{display:flex;gap:.35rem}
+.tool{font:inherit;color:var(--text);background:transparent;border:1px solid var(--border);border-radius:var(--radius);
+  min-height:32px;min-width:32px;padding:0 .6rem;display:inline-flex;align-items:center;gap:.35rem;cursor:pointer}
+.tool:hover{background:var(--sunken)}
+.tool svg{width:16px;height:16px}
+
+/* layout */
+.page{max-width:1180px;margin:auto;padding:0 var(--space-s-l) var(--space-xl)}
+.head{padding:var(--space-l-2xl) 0 var(--space-m)}
+.head h1{max-width:calc(var(--measure) + 6rem)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-l)}
+@media (min-width:1100px){
+  .layout{grid-template-columns:13.5rem minmax(0,var(--measure));gap:var(--space-xl)}
+  .head{padding-left:calc(13.5rem + var(--space-xl))}
+  .toc-m{display:none}
+}
+@media (max-width:1099.98px){.toc-d{display:none}}
+
+/* header */
+.eyebrow{font:600 var(--step--2)/1.3 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--space-xs)}
+h1{font:600 var(--step-4)/1.12 var(--serif);letter-spacing:-.012em;margin:0 0 var(--space-s);text-wrap:balance}
+.dek{font-size:var(--step-1);line-height:1.4;color:var(--muted);margin:0 0 var(--space-m);max-width:var(--measure);text-wrap:pretty}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:var(--space-s) var(--space-m);max-width:var(--measure);
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:var(--space-s) 0;margin:0;font-family:var(--sans)}
+.meta div{min-width:0}
+.meta dt{font:600 var(--step--2)/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+.meta dd{margin:0;font-size:var(--step--1);line-height:1.4}
+.score{display:inline-flex;align-items:center;gap:.45rem;font-weight:600}
+.score .ring{--p:0;width:1.35rem;height:1.35rem;border-radius:50%;flex:none;
+  background:conic-gradient(var(--c-high) calc(var(--p)*1%),var(--border) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0)}
+.score.fail .ring{background:conic-gradient(var(--c-vlow) calc(var(--p)*1%),var(--border) 0)}
+.pill{display:inline-block;font:600 var(--step--2)/1 var(--sans);letter-spacing:.02em;padding:.3em .6em;border-radius:99px;
+  white-space:nowrap;vertical-align:.1em}
+.pill.ok,.pill.high{color:var(--c-high);background:var(--c-high-bg)}
+.pill.moderate{color:var(--c-mod);background:var(--c-mod-bg)}
+.pill.low{color:var(--c-low);background:var(--c-low-bg)}
+.pill.verylow,.pill.fail{color:var(--c-vlow);background:var(--c-vlow-bg)}
+
+/* table of contents */
+.toc{font:var(--step--1)/1.35 var(--sans)}
+.toc-d{position:sticky;top:4.5rem;align-self:start;max-height:calc(100vh - 6rem);overflow:auto;padding-top:.3rem}
+.toc h2{font:600 var(--step--2)/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 .6rem}
+.toc ol{list-style:none;margin:0;padding:0}
+.toc li{margin:0}
+.toc ol ol{padding-left:.85rem}
+.toc a{display:block;padding:.3rem 0 .3rem .75rem;border-left:2px solid var(--border);color:var(--muted);text-decoration:none}
+.toc a:hover{color:var(--text)}
+.toc a[aria-current=true]{color:var(--text);border-left-color:var(--accent);font-weight:600}
+.toc-m{border:1px solid var(--border);border-radius:var(--radius-l);background:var(--surface);padding:.2rem var(--space-s)}
+.toc-m summary{cursor:pointer;padding:.6rem 0;font-weight:600;min-height:32px}
+.toc-m ol{padding-bottom:.6rem}
+
+/* prose */
+.prose{min-width:0}
+.prose>*{max-width:var(--measure)}
+.prose h2{font:600 var(--step-2)/1.2 var(--serif);letter-spacing:-.005em;margin:var(--space-xl) 0 var(--space-s);text-wrap:balance}
+.prose h2:first-child{margin-top:0}
+.prose h3{font:600 var(--step-1)/1.25 var(--serif);margin:var(--space-l) 0 var(--space-xs);text-wrap:balance}
+.prose h4{font:600 var(--step-0)/1.3 var(--sans);margin:var(--space-m) 0 var(--space-2xs)}
+.prose p{margin:0 0 var(--space-s);hyphens:auto;-webkit-hyphens:auto;text-wrap:pretty}
+.prose ul,.prose ol{margin:0 0 var(--space-s);padding-left:1.3em}
+.prose li{margin:.3em 0;hyphens:auto;-webkit-hyphens:auto}
+.prose li::marker{color:var(--muted)}
+.prose blockquote{margin:var(--space-m) 0;padding:.1rem 0 .1rem var(--space-s);border-left:3px solid var(--accent);color:var(--muted)}
+.prose code{font:.86em/1 var(--mono);background:var(--sunken);padding:.12em .35em;border-radius:4px}
+.prose strong,.prose b{font-weight:650}
+.prose hr{border:0;border-top:1px solid var(--rule);margin:var(--space-l) 0}
+.prose .lead{font-size:var(--step-1);line-height:1.45}
+section.conclusion{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:var(--radius-l);padding:var(--space-s) var(--space-m);margin:var(--space-l) 0}
+section.conclusion h2{margin-top:0;font-size:var(--step-1)}
+section.conclusion p:last-child{margin-bottom:0}
+
+/* citations */
+.cites{font:500 .74em/1 var(--sans);white-space:nowrap;color:var(--muted)}
+.cite{color:var(--accent);text-decoration:none;border-bottom:1px dotted currentColor;padding:0 .05em;border-radius:2px}
+.cite:hover,.cite[aria-expanded=true]{background:var(--accent-soft);border-bottom-style:solid}
+.cite.unk{color:var(--c-vlow)}
+.num .cite{border-bottom:0}
+
+/* popover */
+.pop{position:absolute;z-index:30;width:min(26rem,calc(100vw - 2rem));background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius-l);box-shadow:var(--shadow);padding:var(--space-s);
+  font:var(--step--1)/1.45 var(--sans);opacity:0;transform:translateY(4px);transition:opacity var(--dur),transform var(--dur)}
+.pop.on{opacity:1;transform:none}
+.pop[hidden]{display:none}
+.pop .p-src{font-weight:600;margin:0 2rem .25rem 0}
+.pop .p-ref{color:var(--muted);margin:0 0 .6rem}
+.pop blockquote{margin:0 0 .6rem;padding:.55rem .75rem;background:var(--sunken);border-left:3px solid var(--accent);
+  border-radius:0 var(--radius) var(--radius) 0;font:italic var(--step--1)/1.5 var(--serif)}
+.pop .p-foot{display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center;color:var(--muted)}
+.pop .p-close{position:absolute;top:.4rem;right:.4rem;border:0;background:transparent;color:var(--muted);
+  width:32px;height:32px;border-radius:var(--radius);cursor:pointer;font:400 1.2rem/1 var(--sans)}
+.pop .p-close:hover{background:var(--sunken);color:var(--text)}
+.ok-mark{color:var(--c-high);font-weight:600}
+
+/* tables and figures */
+.prose figure{margin:var(--space-m) 0;max-width:none}
+.prose figcaption,.fr-table figcaption{font:600 var(--step--1)/1.35 var(--sans);margin-bottom:.5rem}
+.scroll{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-l);background:var(--surface)}
+.prose table{border-collapse:collapse;width:100%;font:var(--step--1)/1.45 var(--sans);font-variant-numeric:lining-nums tabular-nums}
+.prose th,.prose td{padding:.55rem .75rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+.prose tr:last-child td{border-bottom:0}
+.prose th{font-size:var(--step--2);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--sunken)}
+.prose td.study a{font-weight:600;text-decoration:none}
+.prose td .q{color:var(--accent);margin-left:.25rem}
+.prose td.bad{background:var(--c-vlow-bg)}
+.prose .note{font:var(--step--2)/1.4 var(--sans);color:var(--muted);margin:.5rem 0 0}
+.warn{color:var(--c-low)}
+svg.forest{width:100%;max-width:100%;height:auto}
+.fp-title{font-weight:600;font-size:13px;fill:var(--text)}.fp-lab,.fp-val{font-size:12px;fill:var(--text)}
+.fp-tick{font-size:11px;fill:var(--muted)}.fp-null{stroke:var(--muted);stroke-dasharray:4 3}
+.fp-ci{stroke:var(--accent);stroke-width:2}.fp-pt{fill:var(--accent)}
+
+/* end matter */
+.end{margin-top:var(--space-xl);padding-top:var(--space-m);border-top:1px solid var(--rule)}
+.end h2{font:600 var(--step-1)/1.25 var(--serif);margin:var(--space-l) 0 var(--space-s)}
+.end h2:first-child{margin-top:0}
+.prose .refs{list-style:none;margin:0;padding:0;font:max(0.95rem,var(--step--1))/1.5 var(--serif)}
+.refs li{max-width:64ch;padding:.55rem 0 .55rem 0;border-bottom:1px solid var(--border);scroll-margin-top:5rem;display:grid;
+  grid-template-columns:auto minmax(0,1fr);gap:.75rem}
+.refs li:last-child{border-bottom:0}
+.refs .n{font:600 var(--step--1)/1.5 var(--sans);color:var(--muted);min-width:1.6em;font-variant-numeric:tabular-nums}
+.refs.ay .n{display:none}.refs.ay li{display:block}
+.refs li:target{background:var(--mark);border-radius:var(--radius)}
+.refs .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.3rem;font-family:var(--sans)}
+.tag{font:500 var(--step--2)/1 var(--sans);color:var(--muted);border:1px solid var(--border);border-radius:99px;padding:.3em .6em}
+.tag.r{color:var(--c-vlow);border-color:currentColor}
+.back{font:500 var(--step--2)/1 var(--sans);text-decoration:none;margin-left:.3rem}
+.refs a{overflow-wrap:anywhere}
+.prose .ev{max-width:66ch;display:grid;gap:.6rem;margin:0 0 var(--space-xs);padding:0;list-style:none}
+.ev li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.3rem 1rem;align-items:start;padding:.75rem var(--space-s);
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);font:max(0.95rem,var(--step--1))/1.45 var(--sans)}
+.ev .why{grid-column:1/-1;color:var(--muted);font-size:var(--step--2)}
+.method{font:max(0.95rem,var(--step--1))/1.55 var(--sans);color:var(--muted)}
+.method dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1.2rem;margin:0 0 var(--space-s)}
+.method dt{color:var(--text);font-weight:600}
+.method dd{margin:0}
+.bars{display:grid;gap:.35rem;margin:0 0 var(--space-s)}
+.bars div{display:grid;grid-template-columns:minmax(7.5rem,max-content) 1fr 2.5rem;gap:.75rem;align-items:center}
+.bars i{display:block;height:6px;border-radius:3px;background:var(--border);overflow:hidden}
+.bars b{display:block;height:100%;background:var(--c-high)}
+.bars span:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.colophon{margin-top:var(--space-l);font:var(--step--2)/1.5 var(--sans);color:var(--muted)}
+
+@media (max-width:640px){
+  body{line-height:1.5}
+  .meta{grid-template-columns:1fr 1fr}
+  .bar-title{display:none}
+  .tool .lbl{display:none}
+  .tool{min-height:40px;min-width:40px}
+  .method dl{grid-template-columns:1fr}.method dd{margin-bottom:.4rem}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media print{
+  @page{margin:18mm 16mm}
+  :root{--bg:#fff;--surface:#fff;--sunken:#f4f4f2;--text:#111;--muted:#444;--border:#ccc;--rule:#999;--accent:#0d4f57}
+  body{font-size:10.5pt;line-height:1.45}
+  .bar,.toc,.skip,.pop,.back{display:none!important}
+  .page{max-width:none;padding:0}
+  .head{padding:0 0 12pt}
+  .layout{display:block}
+  .prose>*{max-width:none}
+  h1{font-size:21pt}.prose h2{font-size:14pt;break-after:avoid}.prose h3{font-size:12pt;break-after:avoid}
+  .cite{border:0;color:var(--text)}
+  figure,.scroll,.refs li,.ev li{break-inside:avoid}
+  .scroll{overflow:visible}
+  a{color:inherit;text-decoration:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#text">Przejdź do tekstu</a>
+<header class="bar" id="bar">
+  <div class="bar-in">
+    <a class="brand" href="#top" aria-label="Na górę">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+      <span>factual-research</span>
+    </a>
+    <span class="bar-title" aria-hidden="true">Agenci computer use: co działa i co z tego wziąć do cursor-computer-use</span>
+    <div class="tools">
+      <button class="tool" type="button" id="theme" aria-label="Przełącz jasny lub ciemny motyw" title="Przełącz jasny lub ciemny motyw">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>
+      </button>
+      <button class="tool" type="button" id="print" aria-label="Drukuj lub zapisz jako PDF" title="Drukuj lub zapisz jako PDF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/></svg>
+        <span class="lbl">PDF</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="page" id="top">
+  <header class="head">
+    <p class="eyebrow">Opracowanie ze zweryfikowanymi źródłami</p>
+    <h1>Agenci computer use: co działa i co z tego wziąć do cursor-computer-use</h1>
+    <p class="dek">Przegląd badań nad agentami sterującymi komputerem przez interfejs graficzny, z listą ulepszeń dla serwera MCP, który daje Grokowi w Cursorze dostęp do Maca.</p>
+    <dl class="meta"><div><dt>Data</dt><dd>8 października 2026</dd></div><div><dt>Źródła</dt><dd>33 cytowanych<br>32 sprawdzonych na pełnym tekście</dd></div><div><dt>Weryfikacja</dt><dd><span class="score"><span class="ring" style="--p:100" aria-hidden="true"></span><span>100/100</span></span> <span class="pill ok">zaliczona</span></dd></div><div><dt>Styl cytowania</dt><dd>IEEE</dd></div></dl>
+  </header>
+
+  <div class="layout">
+    <nav class="toc toc-d" aria-label="Spis treści"><h2>Spis treści</h2><ol><li><a href="#percepcja-obraz-czy-struktura-interfejsu">Percepcja: obraz czy struktura interfejsu</a></li><li><a href="#szybkosc-mniej-wywolan-modelu">Szybkość: mniej wywołań modelu</a></li><li><a href="#niezawodnosc-i-macos">Niezawodność i macOS</a></li><li><a href="#bezpieczenstwo">Bezpieczeństwo</a></li><li><a href="#tabela-dowodow">Tabela dowodów</a></li><li><a href="#wnioski">Wnioski</a></li><li><a href="#bibliografia">Bibliografia</a></li><li><a href="#sila-dowodow">Siła dowodów</a></li><li><a href="#weryfikacja">Jak zweryfikowano ten tekst</a></li></ol></nav>
+    <main class="prose" id="text">
+      <details class="toc toc-m"><summary>Spis treści</summary><nav aria-label="Spis treści"><ol><li><a href="#percepcja-obraz-czy-struktura-interfejsu">Percepcja: obraz czy struktura interfejsu</a></li><li><a href="#szybkosc-mniej-wywolan-modelu">Szybkość: mniej wywołań modelu</a></li><li><a href="#niezawodnosc-i-macos">Niezawodność i macOS</a></li><li><a href="#bezpieczenstwo">Bezpieczeństwo</a></li><li><a href="#tabela-dowodow">Tabela dowodów</a></li><li><a href="#wnioski">Wnioski</a></li><li><a href="#bibliografia">Bibliografia</a></li><li><a href="#sila-dowodow">Siła dowodów</a></li><li><a href="#weryfikacja">Jak zweryfikowano ten tekst</a></li></ol></nav></details>
+      <h2 id="percepcja-obraz-czy-struktura-interfejsu">Percepcja: obraz czy struktura interfejsu</h2>
+<p>W benchmarku OSWorld sam zrzut ekranu dawał najsilniejszym modelom wizyjnym tylko kilka procent skuteczności, a autorzy podkreślają, że drzewo dostępności odegrało decydującą rolę <span class="cites num">[<a class="cite" id="c-xie2024osworld-1" href="#ref-xie2024osworld" data-key="xie2024osworld" data-label="Xie et al. (2024)" data-quote="The main experiment revealed the decisive role of the a11y tree in performance within the current technological context." data-loc="s. 13" data-depth="fulltext">1, s. 13</a>]</span>. Ten sam kierunek widać w agentach webowych: najlepsza strategia w SeeAct łączy strukturę HTML z obrazem <span class="cites num">[<a class="cite" id="c-zheng2024ision-1" href="#ref-zheng2024ision" data-key="zheng2024ision" data-label="Zheng et al. (2024)" data-quote="the best grounding strategy we develop in this paper leverages both the HTML structure and visuals" data-loc="abstract" data-depth="fulltext">2, abstract</a>]</span>. Agent Navi osiągnął najlepszy wynik 19.5% w Windows Agent Arena dzięki połączeniu znaczników, drzewa dostępności systemu i detektorów elementów z pikseli <span class="cites num">[<a class="cite" id="c-bonatti2024windows-1" href="#ref-bonatti2024windows" data-key="bonatti2024windows" data-label="Bonatti et al. (2024)" data-quote="using Set-of-Marks prompting (Yang et al., 2023) combined with the system accessibility tree and pixel-based element detectors" data-loc="s. 2" data-depth="fulltext">3, s. 2</a>]</span>. Agent S używa obrazu do śledzenia zmian, a drzewa dostępności do precyzyjnego wskazywania elementów <span class="cites num">[<a class="cite" id="c-agashe2024agent-1" href="#ref-agashe2024agent" data-key="agashe2024agent" data-label="Agashe et al. (2024)" data-quote="a dual-input strategy using visual input for understanding environmental changes together with an image-augmented accessibility tree for precise element grounding" data-loc="s. 2" data-depth="fulltext">4, s. 2</a>]</span>. UFO2 łączy Windows UI Automation z parsowaniem obrazu <span class="cites num">[<a class="cite" id="c-zhang2025desktop-1" href="#ref-zhang2025desktop" data-key="zhang2025desktop" data-label="Zhang et al. (2025)" data-quote="A hybrid control detection pipeline fuses Windows UI Automation (UIA) with vision-based parsing to support diverse interface styles." data-loc="abstract" data-depth="fulltext">5, abstract</a>]</span>.</p>
+<p>Struktura ma jednak słabe strony. Autorzy UGround zwracają uwagę, że drzewa dostępności wnoszą szum, braki i dodatkowy koszt <span class="cites num">[<a class="cite" id="c-gou2024navigating-1" href="#ref-gou2024navigating" data-key="gou2024navigating" data-label="Gou et al. (2024)" data-quote="text-based representations such as HTML or accessibility trees, which, despite their utility, often introduce noise, incompleteness, and increased computational overhead" data-loc="abstract" data-depth="fulltext">6, abstract</a>]</span>. Przegląd metod efektywności opisuje je jako zwarte, ale często niekompletne lub niezgodne z tym, co widać na ekranie <span class="cites num">[<a class="cite" id="c-bai2026efficient-1" href="#ref-bai2026efficient" data-key="bai2026efficient" data-label="Bai et al. (2026)" data-quote="while DOM or AxTree representations are compact yet often incomplete, noisy, or misaligned with the rendered interface" data-loc="s. 5" data-depth="fulltext">7, s. 5</a>]</span>. Gdy struktura i obraz sobie przeczą, modele potrafią nadmiernie ufać błędnej strukturze <span class="cites num">[<a class="cite" id="c-zhang2026agents-1" href="#ref-zhang2026agents" data-key="zhang2026agents" data-label="Zhang et al. (2026)" data-quote="The high conflict sfr (clear pixels, wrong structure) therefore reflects over-trust only when pixels are informative" data-loc="s. 15" data-depth="fulltext">8, s. 15</a>]</span>.</p>
+<p>Ogólne modele wizyjno-językowe wciąż słabo trafiają w elementy. Najlepsze strategie w SeeAct zostawały o 20-25% za idealnym wskazywaniem <span class="cites num">[<a class="cite" id="c-zheng2024ision-2" href="#ref-zheng2024ision" data-key="zheng2024ision" data-label="Zheng et al. (2024)" data-quote="The most effective grounding strategies we explored in this paper still exhibit a 20-25% performance gap compared to oracle grounding." data-loc="s. 8" data-depth="fulltext">2, s. 8</a>]</span>. Na ekranach profesjonalnych o wysokiej rozdzielczości najlepszy model w ScreenSpot-Pro osiągnął tylko 18.9% <span class="cites num">[<a class="cite" id="c-li2025screenspot-1" href="#ref-li2025screenspot" data-key="li2025screenspot" data-label="Li et al. (2025)" data-quote="Existing GUI grounding models perform poorly on this dataset, with the best model achieving only 18.9%." data-loc="abstract" data-depth="abstract">9, abstract</a>]</span>. Pomagają znaczniki nałożone na obraz <span class="cites num">[<a class="cite" id="c-yang2023mark-1" href="#ref-yang2023mark" data-key="yang2023mark" data-label="Yang et al. (2023)" data-quote="Our experiments show that SoM can drastically unleash the grounding capability of GPT-4V." data-loc="s. 2" data-depth="fulltext">10, s. 2</a>]</span> i parsowanie zrzutu na elementy <span class="cites num">[<a class="cite" id="c-lu2024omniparser-1" href="#ref-lu2024omniparser" data-key="lu2024omniparser" data-label="Lü et al. (2024)" data-quote="OMNIPARSER significantly improves GPT-4V&#x27;s performance on ScreenSpot benchmark." data-loc="s. 1" data-depth="fulltext">11, s. 1</a>]</span>. Wynik nie jest jednak jednoznaczny: w agentach webowych same znaczniki okazały się nieskuteczne <span class="cites num">[<a class="cite" id="c-zheng2024ision-3" href="#ref-zheng2024ision" data-key="zheng2024ision" data-label="Zheng et al. (2024)" data-quote="Existing LMM grounding strategies like set-of-mark prompting turns out to be not effective for web agents" data-loc="abstract" data-depth="fulltext">2, abstract</a>]</span>.</p>
+<p>Najprostszy sposób na lepsze trafianie bez trenowania modelu to zawężenie obszaru. ScreenSpot-Pro pokazał, że ograniczenie obszaru poszukiwań poprawia dokładność <span class="cites num">[<a class="cite" id="c-li2025screenspot-2" href="#ref-li2025screenspot" data-key="li2025screenspot" data-label="Li et al. (2025)" data-quote="Our experiments reveal that strategically reducing the search area enhances accuracy." data-loc="abstract" data-depth="abstract">9, abstract</a>]</span>. W eksperymentach GUI-Lens, z kadrowaniem od ogółu do szczegółu dla modeli ogólnego przeznaczenia, wyniki były wyższe nawet o 24.9 punktu procentowego <span class="cites num">[<a class="cite" id="c-fu2026lens-1" href="#ref-fu2026lens" data-key="fu2026lens" data-label="Fu et al. (2026)" data-quote="Experiments across four grounding benchmarks and three general-purpose VLM backends show improvements of up to 24.9 percentage points" data-loc="s. 2" data-depth="fulltext">12, s. 2</a>]</span>. DRS-GUI uzyskał stałe zyski zwłaszcza na gęstych interfejsach w wysokiej rozdzielczości <span class="cites num">[<a class="cite" id="c-liu2026dynamic-1" href="#ref-liu2026dynamic" data-key="liu2026dynamic" data-label="Liu et al. (2026)" data-quote="show consistent gains over strong general and GUI-specific MLLMs, especially on high-resolution, element-dense interfaces" data-loc="s. 8" data-depth="fulltext">13, s. 8</a>]</span>. UI-Zoomer opiera się na tej samej obserwacji: przycięcie i ponowne wskazanie w wyższej rozdzielczości wiąże się z dokładniejszą lokalizacją <span class="cites num">[<a class="cite" id="c-tang2026zoomer-1" href="#ref-tang2026zoomer" data-key="tang2026zoomer" data-label="Tang et al. (2026)" data-quote="Test-time zoom-in methods improve localization by cropping and re-running inference at higher resolution" data-loc="abstract" data-depth="fulltext">14, abstract</a>]</span>. Wyższa rozdzielczość zrzutu sama w sobie zwykle pomaga <span class="cites num">[<a class="cite" id="c-xie2024osworld-2" href="#ref-xie2024osworld" data-key="xie2024osworld" data-label="Xie et al. (2024)" data-quote="Higher screenshot resolution typically leads to improved performance" data-loc="s. 13" data-depth="fulltext">1, s. 13</a>]</span>.</p>
+<h2 id="szybkosc-mniej-wywolan-modelu">Szybkość: mniej wywołań modelu</h2>
+<p>Agenci są wolni głównie przez wywołania dużego modelu. Badanie OSWorld-Human przypisuje większość opóźnienia planowaniu, refleksji i ocenie wykonywanym przez duży model <span class="cites num">[<a class="cite" id="c-abhyankar2025osworld-1" href="#ref-abhyankar2025osworld" data-key="abhyankar2025osworld" data-label="Abhyankar et al. (2025)" data-quote="We find that large model calls for planning, reflection, and judging account for most of the overall latency" data-loc="abstract" data-depth="fulltext">15, abstract</a>]</span>. Nawet najlepsze z 16 badanych agentów wykonywały 2.7-4.3 razy więcej kroków niż potrzeba <span class="cites num">[<a class="cite" id="c-abhyankar2025osworld-2" href="#ref-abhyankar2025osworld" data-key="abhyankar2025osworld" data-label="Abhyankar et al. (2025)" data-quote="even the best agents take 2.7-4.3× more steps than necessary" data-loc="s. 1" data-depth="fulltext">15, s. 1</a>]</span>. Każdy krok to osobne wywołanie modelu, więc mniej kroków to mniejsze opóźnienie i koszt <span class="cites num">[<a class="cite" id="c-zhang2025desktop-2" href="#ref-zhang2025desktop" data-key="zhang2025desktop" data-label="Zhang et al. (2025)" data-quote="Because each step requires an LLM call, reducing the number of steps significantly lowers both latency and cost." data-loc="s. 19" data-depth="fulltext">5, s. 19</a>]</span>. Mniej myślenia nie musi jednak przyspieszać pracy: cua-speedrun odnotował, że więcej rozumowania może skrócić czas zadania, bo agent unika powtarzania nieudanych akcji <span class="cites num">[<a class="cite" id="c-aggarwal2026speedrun-1" href="#ref-aggarwal2026speedrun" data-key="aggarwal2026speedrun" data-label="Aggarwal et al. (2026)" data-quote="more reasoning can reduce task time by avoiding repeated unsuccessful actions, while faster I/O can increase it through additional interaction" data-loc="s. 9" data-depth="fulltext">16, s. 9</a>]</span>.</p>
+<p>Dwie techniki skracają liczbę kroków. Pierwsza to kilka akcji w jednym wywołaniu: w pomiarach UFO2 koszt wnioskowania był niższy nawet o 51.5% bez utraty niezawodności <span class="cites num">[<a class="cite" id="c-zhang2025desktop-3" href="#ref-zhang2025desktop" data-key="zhang2025desktop" data-label="Zhang et al. (2025)" data-quote="Speculative multi-action execution consolidates multiple steps into a single LLM call, lowering inference cost by up to 51.5% without compromising reliability." data-loc="s. 14" data-depth="fulltext">5, s. 14</a>]</span>. Druga to akcje przez API lub narzędzia zamiast klikania. Według autorów UFO2 natywne API wiązały się ze skutecznością wyższą o ponad 8% i mniejszą kruchością niż samo klikanie <span class="cites num">[<a class="cite" id="c-zhang2025desktop-4" href="#ref-zhang2025desktop" data-key="zhang2025desktop" data-label="Zhang et al. (2025)" data-quote="Allowing AppAgents to invoke native APIs or GUI interactions to improve completion rate by over 8%, cuts latency and reduces the fragility seen in purely click-based workflows." data-loc="s. 14" data-depth="fulltext">5, s. 14</a>]</span>. UltraCUA z akcjami hybrydowymi był o 22% skuteczniejszy względnie i o 11% szybszy <span class="cites num">[<a class="cite" id="c-yang2025ultracua-1" href="#ref-yang2025ultracua" data-key="yang2025ultracua" data-label="Yang et al. (2025)" data-quote="On OSWorld, UltraCUA achieves 22% relative improvement while executing 11% faster than existing approaches on average." data-loc="s. 1" data-depth="fulltext">17, s. 1</a>]</span>. W OSWorld-MCP narzędzia MCP podniosły skuteczność na przykład z 8.3% do 20.4% dla OpenAI o3 <span class="cites num">[<a class="cite" id="c-jia2025osworld-1" href="#ref-jia2025osworld" data-key="jia2025osworld" data-label="Jia et al. (2025)" data-quote="MCP tools generally improve task success rates (e.g., from 8.3% to 20.4% for OpenAI o3 at 15 steps" data-loc="abstract" data-depth="fulltext">18, abstract</a>]</span>.</p>
+<p>Narzędzia nie działają jednak same z siebie. Nawet najmocniejsze modele sięgały po nie w 36.3% przypadków <span class="cites num">[<a class="cite" id="c-jia2025osworld-2" href="#ref-jia2025osworld" data-key="jia2025osworld" data-label="Jia et al. (2025)" data-quote="even the strongest models have relatively low tool invocation rates, Only 36.3%" data-loc="abstract" data-depth="fulltext">18, abstract</a>]</span>. W tej samej konfiguracji wynik modelu rozumującego wzrósł o +4.0pp, a modelu bez rozumowania spadł o -5.9pp <span class="cites num">[<a class="cite" id="c-fan2026screenshots-1" href="#ref-fan2026screenshots" data-key="fan2026screenshots" data-label="Fan et al. (2026)" data-quote="the same MCP tools improve a reasoning model by +4.0pp and degrade a non-reasoning model by -5.9pp" data-loc="abstract" data-depth="fulltext">19, abstract</a>]</span>. ToolCUA opisuje niepewność agentów co do tego, kiedy klikać, a kiedy użyć narzędzia <span class="cites num">[<a class="cite" id="c-hu2026toolcua-1" href="#ref-hu2026toolcua" data-key="hu2026toolcua" data-label="Hu et al. (2026)" data-quote="this hybrid action space often leaves them uncertain about when to continue with GUI actions or switch to tools, leading to suboptimal execution paths" data-loc="abstract" data-depth="fulltext">20, abstract</a>]</span>.</p>
+<p>Największe oszczędności przy powtarzalnych zadaniach daje ponowne użycie udanych przebiegów. W eksperymentach EchoPath, który odtwarza zweryfikowane sekwencje akcji, mediana kosztu tokenów była niższa o ponad 90%, a mediana czasu o około 60% <span class="cites num">[<a class="cite" id="c-zhao2026echopath-1" href="#ref-zhao2026echopath" data-key="zhao2026echopath" data-label="Zhao et al. (2026)" data-quote="EchoPath reduced median token cost by more than 90% and median execution time by about 60%." data-loc="abstract" data-depth="fulltext">21, abstract</a>]</span>. Pamięć przepływów AWM dała względny wzrost skuteczności o 24.6% i 51.1% <span class="cites num">[<a class="cite" id="c-wang2024agent-1" href="#ref-wang2024agent" data-key="wang2024agent" data-label="Wang et al. (2024)" data-quote="We evaluate AWM on WebArena and Mind2Web, and achieve 24.6% and 51.1% relative increases in task" data-loc="s. 11" data-depth="fulltext">22, s. 11</a>]</span>. Polityki neuro-symboliczne wiązały się z większą niezawodnością powtarzanych zadań oraz niższym kosztem i opóźnieniem każdego przebiegu <span class="cites num">[<a class="cite" id="c-suh2026neuro-1" href="#ref-suh2026neuro" data-key="suh2026neuro" data-label="Suh et al. (2026)" data-quote="the resulting policies improve reliability under repeated execution while substantially reducing per-run cost and latency" data-loc="s. 11" data-depth="fulltext">23, s. 11</a>]</span>. Odtwarzanie wymaga jednak zabezpieczeń: EchoPath odrzuca niejednoznaczne kroki i wraca do naprawy wskazań albo do planowania od nowa <span class="cites num">[<a class="cite" id="c-zhao2026echopath-2" href="#ref-zhao2026echopath" data-key="zhao2026echopath" data-label="Zhao et al. (2026)" data-quote="rejects ambiguous or incompatible steps to bounded grounding repair or fresh planning" data-loc="abstract" data-depth="fulltext">21, abstract</a>]</span>.</p>
+<h2 id="niezawodnosc-i-macos">Niezawodność i macOS</h2>
+<p>Na macOS agenci wciąż często zawodzą. W macOSWorld najlepsze systemy komercyjne przekraczały 30% skuteczności <span class="cites num">[<a class="cite" id="c-yang2025macosworld-1" href="#ref-yang2025macosworld" data-key="yang2025macosworld" data-label="Yang et al. (2025)" data-quote="proprietary computer-use agents lead at above 30% success rate" data-loc="abstract" data-depth="fulltext">24, abstract</a>]</span>, a w MacArena najlepszy wynik wyniósł 31.83% <span class="cites num">[<a class="cite" id="c-muryn2026macarena-1" href="#ref-muryn2026macarena" data-key="muryn2026macarena" data-label="Muryn et al. (2026)" data-quote="OpenAI Computer Use Preview achieves the highest overall success rate of 31.83%" data-loc="s. 6" data-depth="fulltext">25, s. 6</a>]</span>. Analiza błędów GUITAR pokazuje, że większość pomyłek to nieukończenie zadania, błędne postrzeganie stanu, złe zrozumienie instrukcji i brak wiedzy o interakcji <span class="cites num">[<a class="cite" id="c-zhang2026guitar-1" href="#ref-zhang2026guitar" data-key="zhang2026guitar" data-label="Zhang et al. (2026)" data-quote="Task Completion Failures (TCF), State Perception Failures (SPF), Instruction Grounding Failures (IGF), and Interaction Knowledge Failures (IKF) account for the majority of errors" data-loc="s. 20" data-depth="fulltext">26, s. 20</a>]</span>. Według przytaczanych danych 56.7% akcji agentów trafia w zły element <span class="cites num">[<a class="cite" id="c-liu2026visual-1" href="#ref-liu2026visual" data-key="liu2026visual" data-label="Liu et al. (2026)" data-quote="56.7% of CUA actions target the wrong element" data-loc="s. 2" data-depth="fulltext">27, s. 2</a>]</span>, a stan ekranu może się zmienić między zrzutem a kliknięciem <span class="cites num">[<a class="cite" id="c-liu2026visual-2" href="#ref-liu2026visual" data-key="liu2026visual" data-label="Liu et al. (2026)" data-quote="The screen state can change between screenshot() and click()" data-loc="s. 3" data-depth="fulltext">27, s. 3</a>]</span>.</p>
+<h2 id="bezpieczenstwo">Bezpieczeństwo</h2>
+<p>Treści widoczne na ekranie łatwo przejmują agentów. Spreparowane pop-upy skłaniały je do kliknięcia w 86% przypadków, a skuteczność zadań była wtedy niższa o 47% <span class="cites num">[<a class="cite" id="c-zhang2024attacking-1" href="#ref-zhang2024attacking" data-key="zhang2024attacking" data-label="Zhang et al. (2024)" data-quote="leads to an attack success rate (the frequency of the agent clicking the pop-ups) of 86% on average and decreases the task success rate by 47%" data-loc="abstract" data-depth="fulltext">28, abstract</a>]</span>. Proste obrony, takie jak polecenie ignorowania pop-upów, nie działały <span class="cites num">[<a class="cite" id="c-zhang2024attacking-2" href="#ref-zhang2024attacking" data-key="zhang2024attacking" data-label="Zhang et al. (2024)" data-quote="Basic defense techniques, such as asking the agent to ignore pop-ups or including an advertisement notice, are ineffective against the attack." data-loc="abstract" data-depth="fulltext">28, abstract</a>]</span>. W OS-Harm wszystkie modele często wykonywały polecenia nadużycia i były podatne na wstrzyknięte polecenia <span class="cites num">[<a class="cite" id="c-kuntz2025harm-1" href="#ref-kuntz2025harm" data-key="kuntz2025harm" data-label="Kuntz et al. (2025)" data-quote="all models tend to directly comply with many deliberate misuse queries, are relatively vulnerable to static prompt injections, and occasionally perform unsafe actions" data-loc="abstract" data-depth="fulltext">29, abstract</a>]</span>. Ataki rozłożone na kilka kroków zachowują skuteczność lepiej niż jednokrokowe <span class="cites num">[<a class="cite" id="c-zhan2026stepjack-1" href="#ref-zhan2026stepjack" data-key="zhan2026stepjack" data-label="Zhan et al. (2026)" data-quote="multi-step attacks retain more of their effectiveness under both defenses than single-step attacks do" data-loc="s. 8" data-depth="fulltext">30, s. 8</a>]</span>. Autorzy macOSWorld piszą, że ataki przez zwodzenie są ogólne i wymagają pilnej uwagi <span class="cites num">[<a class="cite" id="c-yang2025macosworld-2" href="#ref-yang2025macosworld" data-key="yang2025macosworld" data-label="Yang et al. (2025)" data-quote="deception attacks are more general and demand immediate attention" data-loc="abstract" data-depth="fulltext">24, abstract</a>]</span>, a systematyzacja podatności wskazuje, że wiele zagrożeń wynika z architektury, nie tylko z zachowania modelu <span class="cites num">[<a class="cite" id="c-jones2025systematization-1" href="#ref-jones2025systematization" data-key="jones2025systematization" data-label="Jones et al. (2025)" data-quote="many of these risks are architectural, not just behavioral, and persist across agents, frameworks, and guardrail implementations" data-loc="s. 1" data-depth="fulltext">31, s. 1</a>]</span>.</p>
+<p>Najmocniejsze gwarancje daje izolacja architektoniczna, czyli oddzielenie zaufanego planu zadania od niezaufanych obserwacji <span class="cites num">[<a class="cite" id="c-foerster2026camels-1" href="#ref-foerster2026camels" data-key="foerster2026camels" data-label="Foerster et al. (2026)" data-quote="architectural isolation provides the strongest guarantees by strictly separating trusted task planning from untrusted environment observations" data-loc="abstract" data-depth="fulltext">32, abstract</a>]</span>. Praktyczny wariant to strażnik działający poza agentem, który sprawdza każde kliknięcie razem ze zrzutem <span class="cites num">[<a class="cite" id="c-liu2026visual-3" href="#ref-liu2026visual" data-key="liu2026visual" data-label="Liu et al. (2026)" data-quote="The guardrail operates outside the agent process: it intercepts each click(x,y) together with the screenshot and the LLM&#x27;s reasoning text." data-loc="s. 4" data-depth="fulltext">27, s. 4</a>]</span>. Ograniczenie jest takie, że agent musi stale obserwować ekran, co kłóci się z pełną izolacją <span class="cites num">[<a class="cite" id="c-foerster2026camels-2" href="#ref-foerster2026camels" data-key="foerster2026camels" data-label="Foerster et al. (2026)" data-quote="Current agents require continuous observation of UI state to determine each action, which conflicts with the isolation required for security." data-loc="abstract" data-depth="fulltext">32, abstract</a>]</span>. Szkoda może też powstać przy całkiem niewinnym poleceniu użytkownika <span class="cites num">[<a class="cite" id="c-ding2026blind-1" href="#ref-ding2026blind" data-key="ding2026blind" data-label="Ding et al. (2026)" data-quote="where user instructions are entirely benign and harm arises from the task context or execution outcome" data-loc="abstract" data-depth="fulltext">33, abstract</a>]</span>.</p>
+<h2 id="tabela-dowodow">Tabela dowodów</h2>
+<figure class="fr-table"><figcaption>Macierz dowodów (twierdzenie × źródło)</figcaption><div class="scroll"><table>
+<thead><tr><th>Źródło</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>C6</th><th>C7</th><th>C8</th><th>C9</th><th>C10</th></tr></thead><tbody>
+<tr><td class="study"><a href="#ref-xie2024osworld">[1]</a></td><td class="ok" title="&quot;The main experiment revealed the decisive role of the a11y tree in performance within the current technological context.&quot; - p. 13">✔<span class="q">❝</span></td><td></td><td class="ok" title="&quot;Higher screenshot resolution typically leads to improved performance&quot; - p. 12">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-zheng2024ision">[2]</a></td><td class="ok" title="&quot;the best grounding strategy we develop in this paper leverages both the HTML structure and visuals&quot; - p. 1">✔<span class="q">❝</span></td><td class="ok" title="&quot;Existing LMM grounding strategies like set-of-mark prompting turns out to be not effective for web agents&quot; - p. 1">✘<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-bonatti2024windows">[3]</a></td><td class="ok" title="&quot;The best configuration achieves a 19.5% success rate in WINDOWSAGENTARENA using Set-of-Marks prompting (Yang et al., 2023) combined with the system accessibility tree and pixel-based element detectors.&quot; - p. 2">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-agashe2024agent">[4]</a></td><td class="ok" title="&quot;a dual-input strategy using visual input for understanding environmental changes together with an image-augmented accessibility tree for precise element grounding&quot; - p. 2">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-zhang2025desktop">[5]</a></td><td class="ok" title="&quot;A hybrid control detection pipeline fuses Windows UI Automation (UIA) with vision-based parsing to support diverse interface styles.&quot; - p. 1">✔<span class="q">❝</span></td><td></td><td></td><td class="ok" title="&quot;Because each step requires an LLM call, reducing the number of steps significantly lowers both latency and cost.&quot; - p. 19">✔<span class="q">❝</span></td><td class="ok" title="&quot;Allowing AppAgents to invoke native APIs or GUI interactions to improve completion rate by over 8%, cuts latency and reduces the fragility seen in purely click-based workflows.&quot; - p. 14">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-gou2024navigating">[6]</a></td><td class="ok" title="&quot;text-based representations such as HTML or accessibility trees, which, despite their utility, often introduce noise, incompleteness, and increased computational overhead&quot; - p. 1">✘<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-bai2026efficient">[7]</a></td><td class="ok" title="&quot;Screenshots preserve rendered context but lack structure, while DOM or AxTree representations are compact yet often incomplete, noisy, or misaligned with the rendered interface.&quot; - p. 5">≈<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-zhang2026agents">[8]</a></td><td class="ok" title="&quot;The high conflict sfr (clear pixels, wrong structure) therefore reflects over-trust only when pixels are informative, not a scoring artifact.&quot; - p. 15">≈<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-yang2023mark">[10]</a></td><td></td><td class="ok" title="&quot;Our experiments show that SoM can drastically unleash the grounding capability of GPT-4V.&quot; - p. 2">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-lu2024omniparser">[11]</a></td><td></td><td class="ok" title="&quot;OMNIPARSER significantly improves GPT-4V&#x27;s performance on ScreenSpot benchmark.&quot; - p. 1">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-li2025screenspot">[9]</a></td><td></td><td class="ok" title="&quot;Existing GUI grounding models perform poorly on this dataset, with the best model achieving only 18.9%.&quot; - abstract">✔<span class="q">❝</span></td><td class="ok" title="&quot;Our experiments reveal that strategically reducing the search area enhances accuracy.&quot; - abstract">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-fu2026lens">[12]</a></td><td></td><td></td><td class="ok" title="&quot;Experiments across four grounding benchmarks and three general-purpose VLM backends show improvements of up to 24.9 percentage points&quot; - p. 2">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-liu2026dynamic">[13]</a></td><td></td><td></td><td class="ok" title="&quot;Experiments on ScreenSpot, ScreenSpot-V2, and ScreenSpot-Pro show consistent gains over strong general and GUI-specific MLLMs, especially on high-resolution, element-dense interfaces.&quot; - p. 8">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-tang2026zoomer">[14]</a></td><td></td><td></td><td class="ok" title="&quot;Test-time zoom-in methods improve localization by cropping and re-running inference at higher resolution&quot; - p. 1">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-abhyankar2025osworld">[15]</a></td><td></td><td></td><td></td><td class="ok" title="&quot;We evaluate 16 agents on their efficiency using OSWorld-Human and found that even the best agents take 2.7-4.3× more steps than necessary.&quot; - p. 1">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-aggarwal2026speedrun">[16]</a></td><td></td><td></td><td></td><td class="ok" title="&quot;We further find that more reasoning can reduce task time by avoiding repeated unsuccessful actions, while faster I/O can increase it through additional interaction.&quot; - p. 9">≈<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-yang2025ultracua">[17]</a></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;On OSWorld, UltraCUA achieves 22% relative improvement while executing 11% faster than existing approaches on average.&quot; - p. 1">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-jia2025osworld">[18]</a></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;even the strongest models have relatively low tool invocation rates, Only 36.3%&quot; - p. 1">≈<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-fan2026screenshots">[19]</a></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;the same MCP tools improve a reasoning model by +4.0pp and degrade a non-reasoning model by -5.9pp&quot; - p. 1">≈<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-hu2026toolcua">[20]</a></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;this hybrid action space often leaves them uncertain about when to continue with GUI actions or switch to tools, leading to suboptimal execution paths&quot; - ">✘<span class="q">❝</span></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-zhao2026echopath">[21]</a></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;During replay, EchoPath rebinds only declared modifiable inputs and rejects ambiguous or incompatible steps to bounded grounding repair or fresh planning.&quot; - p. 1">≈<span class="q">❝</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-wang2024agent">[22]</a></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;We evaluate AWM on WebArena and Mind2Web, and achieve 24.6% and 51.1% relative increases in task&quot; - p. 11">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-suh2026neuro">[23]</a></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;the resulting policies improve reliability under repeated execution while substantially reducing per-run cost and latency&quot; - p. 11">✔<span class="q">❝</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-yang2025macosworld">[24]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;proprietary computer-use agents lead at above 30% success rate&quot; - p. 1">✔<span class="q">❝</span></td><td></td><td class="ok" title="&quot;Results from safety benchmarking also highlight that deception attacks are more general and demand immediate attention.&quot; - p. 1">✔<span class="q">❝</span></td><td></td></tr>
+<tr><td class="study"><a href="#ref-muryn2026macarena">[25]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;OpenAI Computer Use Preview achieves the highest overall success rate of 31.83%&quot; - p. 6">✔<span class="q">❝</span></td><td></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-zhang2026guitar">[26]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;Task Completion Failures (TCF), State Perception Failures (SPF), Instruction Grounding Failures (IGF), and Interaction Knowledge Failures (IKF) account for the majority of errors&quot; - p. 20">✔<span class="q">❝</span></td><td></td><td></td></tr>
+<tr><td class="study"><a href="#ref-liu2026visual">[27]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;The screen state can change between screenshot() and click()&quot; - p. 3">✔<span class="q">❝</span></td><td></td><td class="ok" title="&quot;The guardrail operates outside the agent process: it intercepts each click(x,y) together with the screenshot and the LLM&#x27;s reasoning text.&quot; - p. 4">✔<span class="q">❝</span></td></tr>
+<tr><td class="study"><a href="#ref-zhang2024attacking">[28]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;Basic defense techniques, such as asking the agent to ignore pop-ups or including an advertisement notice, are ineffective against the attack.&quot; - p. 1">✔<span class="q">❝</span></td><td></td></tr>
+<tr><td class="study"><a href="#ref-kuntz2025harm">[29]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;all models tend to directly comply with many deliberate misuse queries, are relatively vulnerable to static prompt injections, and occasionally perform unsafe actions&quot; - p. 1">✔<span class="q">❝</span></td><td></td></tr>
+<tr><td class="study"><a href="#ref-zhan2026stepjack">[30]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;multi-step attacks retain more of their effectiveness under both defenses than single-step attacks do&quot; - p. 8">✔<span class="q">❝</span></td><td></td></tr>
+<tr><td class="study"><a href="#ref-jones2025systematization">[31]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;many of these risks are architectural, not just behavioral, and persist across agents, frameworks, and guardrail implementations&quot; - p. 1">✔<span class="q">❝</span></td><td></td></tr>
+<tr><td class="study"><a href="#ref-foerster2026camels">[32]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;Current agents require continuous observation of UI state to determine each action, which conflicts with the isolation required for security.&quot; - p. 1">≈<span class="q">❝</span></td></tr>
+<tr><td class="study"><a href="#ref-ding2026blind">[33]</a></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="ok" title="&quot;Existing safety evaluations largely target explicit threats such as misuse and prompt injection, but overlook a subtle yet critical setting where user instructions are entirely benign and harm arises from the task context or execution outcome.&quot; - p. 1">≈<span class="q">❝</span></td></tr>
+</tbody></table></div>
+<p class="note">Twierdzenia: C1 = Połączenie zrzutu ekranu ze strukturą interfejsu (drzewem dostępności) daje agentom lepsze wyniki niż sam obraz | C2 = Ogólne modele wizyjno-językowe słabo wskazują elementy na ekranie; znaczniki i parsowanie ekranu pomagają, ale nie zamykają luki | C3 = Zawężanie obszaru i powiększanie fragmentów ekranu poprawia trafność wskazywania bez trenowania modelu, zwłaszcza przy wysokiej rozdzielczości | C4 = Głównym źródłem powolności agentów są wywołania dużego modelu i nadmiarowe kroki | C5 = Kilka akcji w jednym wywołaniu modelu oraz akcje przez API lub narzędzia zamiast klikania zmniejszają liczbę kroków bez utraty skuteczności | C6 = Ponowne użycie udanych przebiegów (pamięć przepływów, odtwarzanie) obniża koszt i czas powtarzalnych zadań | C7 = Na macOS obecni agenci często zawodzą: najlepsze systemy komercyjne osiągają około 30% skuteczności | C8 = Znaczna część błędów agentów to błędy postrzegania stanu i trafiania we właściwy element | C9 = Treści na ekranie, takie jak pop-upy i wstrzyknięte polecenia, skutecznie przejmują agentów, a proste instrukcje typu ignoruj nie wystarczają | C10 = Najsilniejsze obrony są architektoniczne: oddzielenie zaufanego planu od niezaufanych obserwacji i kontrola akcji poza modelem</p>
+</figure>
+<section class="conclusion">
+<h2 id="wnioski">Wnioski</h2>
+<p>Nasz serwer już stosuje to, co badania wskazują jako najskuteczniejsze: hybrydę drzewa dostępności z obrazem i OCR, akcje po etykiecie zamiast celowania w piksele, łączenie kroków w batch oraz deep linki zamiast klikania. Kolejne ulepszenia według spodziewanego zysku:</p>
+<ol><li><strong>Przepisy, czyli zapamiętane przebiegi.</strong> Po udanym zadaniu zapisać sekwencję akcji semantycznych (click_text, fill, menu, open_url) z punktami kontrolnymi wait_for. Przy powtórce odtworzyć ją jednym wywołaniem, a przy pierwszej niezgodności oddać sterowanie modelowi. To ulepszenie z najmocniejszym efektem w badaniach dla zadań powtarzalnych <span class="cites num">[<a class="cite" id="c-zhao2026echopath-3" href="#ref-zhao2026echopath" data-key="zhao2026echopath" data-label="Zhao et al. (2026)" data-quote="EchoPath reduced median token cost by more than 90% and median execution time by about 60%." data-loc="abstract" data-depth="fulltext">21, abstract</a>]</span>.</li><li><strong>Sprawdzanie celu przed kliknięciem.</strong> Przy click(x, y) odczytać przez Accessibility element pod punktem i zgłosić, w co kliknięcie trafi lub trafiło. Chroni to przed pomyłkami i przed zmianą ekranu między zrzutem a kliknięciem <span class="cites num">[<a class="cite" id="c-liu2026visual-4" href="#ref-liu2026visual" data-key="liu2026visual" data-label="Liu et al. (2026)" data-quote="The screen state can change between screenshot() and click()" data-loc="s. 3" data-depth="fulltext">27, s. 3</a>]</span>.</li><li><strong>Potwierdzenie poza modelem dla ryzykownych akcji.</strong> Kliknięcia w elementy typu Wyślij, Kup, Usuń, Zapłać zatrzymuje serwer, a nie model, i pyta użytkownika natywnym oknem. Zgodnie z badaniami same instrukcje dla modelu nie wystarczają <span class="cites num">[<a class="cite" id="c-zhang2024attacking-3" href="#ref-zhang2024attacking" data-key="zhang2024attacking" data-label="Zhang et al. (2024)" data-quote="Basic defense techniques, such as asking the agent to ignore pop-ups or including an advertisement notice, are ineffective against the attack." data-loc="abstract" data-depth="fulltext">28, abstract</a>]</span>.</li><li><strong>Zoom do klikania.</strong> Zoom ma zwracać fragment z siatką opisaną we współrzędnych pełnego zrzutu, żeby model mógł kliknąć dokładnie w to, co widzi w powiększeniu (podejście od ogółu do szczegółu) <span class="cites num">[<a class="cite" id="c-li2025screenspot-3" href="#ref-li2025screenspot" data-key="li2025screenspot" data-label="Li et al. (2025)" data-quote="Our experiments reveal that strategically reducing the search area enhances accuracy." data-loc="abstract" data-depth="abstract">9, abstract</a>]</span>.</li><li><strong>Narzędzia aplikacji zamiast klikania.</strong> Dla aplikacji skryptowalnych (Muzyka, Notatki, Przypomnienia, Safari, Finder) dodać gotowe akcje przez AppleScript, a w skillu jasno opisać, kiedy po nie sięgać, bo modele same rzadko korzystają z narzędzi <span class="cites num">[<a class="cite" id="c-jia2025osworld-3" href="#ref-jia2025osworld" data-key="jia2025osworld" data-label="Jia et al. (2025)" data-quote="even the strongest models have relatively low tool invocation rates, Only 36.3%" data-loc="abstract" data-depth="fulltext">18, abstract</a>]</span>.</li><li><strong>Zostawić Groka w trybie rozumowania.</strong> Narzędzia pomagają modelom rozumującym, a szkodzą tym bez rozumowania, a więcej myślenia może skrócić całe zadanie <span class="cites num">[<a class="cite" id="c-fan2026screenshots-2" href="#ref-fan2026screenshots" data-key="fan2026screenshots" data-label="Fan et al. (2026)" data-quote="the same MCP tools improve a reasoning model by +4.0pp and degrade a non-reasoning model by -5.9pp" data-loc="abstract" data-depth="fulltext">19, abstract</a>]</span>. To odwraca wcześniejszą sugestię, żeby obniżyć poziom myślenia.</li></ol>
+</section>
+      <div class="end">
+        <h2 id="bibliografia">Bibliografia</h2><ol class="refs"><li id="ref-xie2024osworld"><span class="n">1.</span><div><span class="rt">T. Xie et al., &quot;OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments,&quot; <i>arXiv (Cornell University)</i>, pp. 52040-52094, 2024, doi:10.48550/arxiv.2404.07972.</span><a class="back" href="#c-xie2024osworld-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zheng2024ision"><span class="n">2.</span><div><span class="rt">B. Zheng, B. Gou, J. Kil, H. Sun, and Y. Su, &quot;GPT-4V(ision) is a Generalist Web Agent, if Grounded,&quot; <i>arXiv (Cornell University)</i>, 2024, doi:10.48550/arxiv.2401.01614.</span><a class="back" href="#c-zheng2024ision-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-bonatti2024windows"><span class="n">3.</span><div><span class="rt">R. Bonatti et al., &quot;Windows Agent Arena: Evaluating Multi-Modal OS Agents at Scale,&quot; <i>arXiv (Cornell University)</i>, 2024, doi:10.48550/arxiv.2409.08264.</span><a class="back" href="#c-bonatti2024windows-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-agashe2024agent"><span class="n">4.</span><div><span class="rt">S. Agashe, J. Han, S. Gan, J. Yang, A. Li, and X. E. Wang, &quot;Agent S: An Open Agentic Framework that Uses Computers Like a Human,&quot; <i>arXiv</i>, 2024, arXiv:2410.08164.</span><a class="back" href="#c-agashe2024agent-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zhang2025desktop"><span class="n">5.</span><div><span class="rt">C. Zhang et al., &quot;UFO2: The Desktop AgentOS,&quot; <i>arXiv (Cornell University)</i>, 2025, doi:10.48550/arxiv.2504.14603.</span><a class="back" href="#c-zhang2025desktop-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-gou2024navigating"><span class="n">6.</span><div><span class="rt">B. Gou et al., &quot;Navigating the Digital World as Humans Do: Universal Visual Grounding for GUI Agents,&quot; <i>arXiv (Cornell University)</i>, 2024, doi:10.48550/arxiv.2410.05243.</span><a class="back" href="#c-gou2024navigating-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-bai2026efficient"><span class="n">7.</span><div><span class="rt">B. Bai et al., &quot;Efficient GUI Agents: A Systems Survey of Observation, Memory, Action, and Runtime Optimization,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2609.02309.</span><a class="back" href="#c-bai2026efficient-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zhang2026agents"><span class="n">8.</span><div><span class="rt">G. Zhang, Y. Chen, Y. Qi, and H. Yang, &quot;Do GUI Agents Believe Their Eyes? Diagnosing State-Belief Reliance on Pixels versus Structure,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2607.04334.</span><a class="back" href="#c-zhang2026agents-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-li2025screenspot"><span class="n">9.</span><div><span class="rt">K. Li et al., &quot;ScreenSpot-Pro: GUI Grounding for Professional High-Resolution Computer Use,&quot; <i>Proceedings of the 33rd ACM International Conference on Multimedia</i>, pp. 8778-8786, 2025, doi:10.1145/3746027.3755688.</span><a class="back" href="#c-li2025screenspot-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Referat konferencyjny</span><span class="tag">tylko abstrakt</span></div></div></li><li id="ref-yang2023mark"><span class="n">10.</span><div><span class="rt">J. Yang, H. Zhang, F. Li, X. Zou, C. Li, and J. Gao, &quot;Set-of-Mark Prompting Unleashes Extraordinary Visual Grounding in GPT-4V,&quot; <i>arXiv (Cornell University)</i>, 2023, doi:10.48550/arxiv.2310.11441.</span><a class="back" href="#c-yang2023mark-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-lu2024omniparser"><span class="n">11.</span><div><span class="rt">Y. Lü, J. Yang, Y. Shen, and A. H. Awadallah, &quot;OmniParser for Pure Vision Based GUI Agent,&quot; <i>arXiv (Cornell University)</i>, 2024, doi:10.48550/arxiv.2408.00203.</span><a class="back" href="#c-lu2024omniparser-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-fu2026lens"><span class="n">12.</span><div><span class="rt">Z. Fu et al., &quot;GUI-Lens: Coarse-to-Fine Cropping for GUI Grounding with General-Purpose VLMs,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2608.03270.</span><a class="back" href="#c-fu2026lens-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-liu2026dynamic"><span class="n">13.</span><div><span class="rt">Y. Liu, H. Shen, L. Yu, S. Liu, Z. Chen, and Y. Zhou, &quot;DRS-GUI: Dynamic Region Search for Training-Free GUI Grounding,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2605.15542.</span><a class="back" href="#c-liu2026dynamic-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-tang2026zoomer"><span class="n">14.</span><div><span class="rt">F. Tang et al., &quot;UI-Zoomer: Uncertainty-Driven Adaptive Zoom-In for GUI Grounding,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2604.14113.</span><a class="back" href="#c-tang2026zoomer-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-abhyankar2025osworld"><span class="n">15.</span><div><span class="rt">R. Abhyankar, Q. Qi, and Y. Zhang, &quot;OSWorld-Human: Benchmarking the Efficiency of Computer-Use Agents,&quot; <i>arXiv (Cornell University)</i>, 2025, doi:10.48550/arxiv.2506.16042.</span><a class="back" href="#c-abhyankar2025osworld-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-aggarwal2026speedrun"><span class="n">16.</span><div><span class="rt">P. Aggarwal, L. K. Jang, S. Welleck, D. Fried, R. Salakhutdinov, and J. Y. Koh, &quot;cua-speedrun: Standardized Benchmarking of the Speed of Computer-Use Agents,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2609.40284.</span><a class="back" href="#c-aggarwal2026speedrun-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-yang2025ultracua"><span class="n">17.</span><div><span class="rt">Y. Yang et al., &quot;UltraCUA: A Foundation Model for Computer Use Agents with Hybrid Action,&quot; <i>arXiv (Cornell University)</i>, 2025, doi:10.48550/arxiv.2510.17790.</span><a class="back" href="#c-yang2025ultracua-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-jia2025osworld"><span class="n">18.</span><div><span class="rt">H. Jia et al., &quot;OSWorld-MCP: Benchmarking MCP Tool Invocation In Computer-Use Agents,&quot; <i>arXiv</i>, 2025, arXiv:2510.24563.</span><a class="back" href="#c-jia2025osworld-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-fan2026screenshots"><span class="n">19.</span><div><span class="rt">S. Fan et al., &quot;Screenshots or Tools? Eliciting Tool Use and Managing Multimodal Context in Hybrid GUI-MCP Computer-Use Agents,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2608.03327.</span><a class="back" href="#c-fan2026screenshots-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-hu2026toolcua"><span class="n">20.</span><div><span class="rt">X. Hu et al., &quot;ToolCUA: Towards Optimal GUI-Tool Path Orchestration for Computer Use Agents,&quot; <i>arXiv</i>, 2026, arXiv:2605.12481.</span><a class="back" href="#c-hu2026toolcua-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zhao2026echopath"><span class="n">21.</span><div><span class="rt">Y. Zhao, A. Shanmugham, S. Roy, and Y. Xu, &quot;EchoPath: Execution-Level Replayable Memory for GUI Agents,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2609.16635.</span><a class="back" href="#c-zhao2026echopath-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-wang2024agent"><span class="n">22.</span><div><span class="rt">Z. Z. Wang, J. Mao, D. Fried, and G. Neubig, &quot;Agent Workflow Memory,&quot; <i>arXiv (Cornell University)</i>, 2024, doi:10.48550/arxiv.2409.07429.</span><a class="back" href="#c-wang2024agent-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-suh2026neuro"><span class="n">23.</span><div><span class="rt">H. Suh et al., &quot;Neuro-Symbolic Computer Use: Learning Reusable Policies for Reliable and Efficient Execution,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2609.36927.</span><a class="back" href="#c-suh2026neuro-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-yang2025macosworld"><span class="n">24.</span><div><span class="rt">P. Yang, H. Ci, and M. Z. Shou, &quot;macOSWorld: A Multilingual Interactive Benchmark for GUI Agents,&quot; <i>neural information processing systems</i>, pp. 148529-148571, 2025, doi:10.52202/085713-4468.</span><a class="back" href="#c-yang2025macosworld-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Artykuł recenzowany</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-muryn2026macarena"><span class="n">25.</span><div><span class="rt">V. Muryn, M. Shamrai, S. Mazepa, and Y. Khodysko, &quot;MacArena: Benchmarking Computer Use Agents on an Online macOS Environment,&quot; <i>arXiv</i>, 2026, doi:10.48550/arxiv.2606.06560.</span><a class="back" href="#c-muryn2026macarena-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zhang2026guitar"><span class="n">26.</span><div><span class="rt">S. Zhang et al., &quot;GUITAR: Structured Failure Diagnosis of GUI Agents via State Transitions,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2609.34113.</span><a class="back" href="#c-zhang2026guitar-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-liu2026visual"><span class="n">27.</span><div><span class="rt">X. Liu, B. He, X. Liu, A. Luo, H. Zhang, and H. Chen, &quot;Visual Confused Deputy: Exploiting and Defending Perception Failures in Computer-Using Agents,&quot; <i>arXiv</i>, 2026, arXiv:2603.14707.</span><a class="back" href="#c-liu2026visual-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zhang2024attacking"><span class="n">28.</span><div><span class="rt">Y. Zhang, T. Yu, and D. Yang, &quot;Attacking Vision-Language Computer Agents via Pop-ups,&quot; <i>arXiv (Cornell University)</i>, pp. 8387-8401, 2024, doi:10.48550/arxiv.2411.02391.</span><a class="back" href="#c-zhang2024attacking-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-kuntz2025harm"><span class="n">29.</span><div><span class="rt">T. Kuntz et al., &quot;OS-Harm: A Benchmark for Measuring Safety of Computer Use Agents,&quot; <i>neural information processing systems</i>, pp. 50396-50427, 2025, doi:10.52202/085713-1502.</span><a class="back" href="#c-kuntz2025harm-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Artykuł recenzowany</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-zhan2026stepjack"><span class="n">30.</span><div><span class="rt">Z. Zhan, A. Rafiey, A. Ma, L. Pishdad, and L. El Asri, &quot;StepJack: Benchmarking Computer-Use Agent Safety Against Multi-Step Indirect Prompt Injection,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2608.06477.</span><a class="back" href="#c-zhan2026stepjack-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-jones2025systematization"><span class="n">31.</span><div><span class="rt">D. J. Jones et al., &quot;A Systematization of Security Vulnerabilities in Computer Use Agents,&quot; <i>arXiv (Cornell University)</i>, 2025, doi:10.48550/arxiv.2507.05445.</span><a class="back" href="#c-jones2025systematization-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-foerster2026camels"><span class="n">32.</span><div><span class="rt">H. Foerster et al., &quot;CaMeLs Can Use Computers Too: System-level Security for Computer Use Agents,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2601.09923.</span><a class="back" href="#c-foerster2026camels-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li><li id="ref-ding2026blind"><span class="n">33.</span><div><span class="rt">X. Ding et al., &quot;The Blind Spot of Agent Safety: How Benign User Instructions Expose Critical Vulnerabilities in Computer-Use Agents,&quot; <i>arXiv (Cornell University)</i>, 2026, doi:10.48550/arxiv.2604.10577.</span><a class="back" href="#c-ding2026blind-1" aria-label="Wróć do pierwszego cytowania">&#8617;</a><div class="tags"><span class="tag">Preprint (bez recenzji)</span><span class="tag">pełny tekst</span></div></div></li></ol>
+        <h2 id="sila-dowodow">Siła dowodów</h2><ul class="ev"><li><span>Połączenie zrzutu ekranu ze strukturą interfejsu (drzewem dostępności) daje agentom lepsze wyniki niż sam obraz</span><span class="pill verylow">pewność: bardzo niska</span><span class="why">8 badań · &#10004; 5 &#10008; 1 &#8776; 2</span></li><li><span>Ogólne modele wizyjno-językowe słabo wskazują elementy na ekranie; znaczniki i parsowanie ekranu pomagają, ale nie zamykają luki</span><span class="pill moderate">pewność: umiarkowana</span><span class="why">4 badań · &#10004; 4 &#10008; 0 &#8776; 0</span></li><li><span>Zawężanie obszaru i powiększanie fragmentów ekranu poprawia trafność wskazywania bez trenowania modelu, zwłaszcza przy wysokiej rozdzielczości</span><span class="pill moderate">pewność: umiarkowana</span><span class="why">5 badań · &#10004; 5 &#10008; 0 &#8776; 0</span></li><li><span>Głównym źródłem powolności agentów są wywołania dużego modelu i nadmiarowe kroki</span><span class="pill verylow">pewność: bardzo niska</span><span class="why">3 badań · &#10004; 2 &#10008; 0 &#8776; 1</span></li><li><span>Kilka akcji w jednym wywołaniu modelu oraz akcje przez API lub narzędzia zamiast klikania zmniejszają liczbę kroków bez utraty skuteczności</span><span class="pill verylow">pewność: bardzo niska</span><span class="why">5 badań · &#10004; 3 &#10008; 1 &#8776; 1</span></li><li><span>Ponowne użycie udanych przebiegów (pamięć przepływów, odtwarzanie) obniża koszt i czas powtarzalnych zadań</span><span class="pill verylow">pewność: bardzo niska</span><span class="why">3 badań · &#10004; 3 &#10008; 0 &#8776; 0</span></li><li><span>Na macOS obecni agenci często zawodzą: najlepsze systemy komercyjne osiągają około 30% skuteczności</span><span class="pill moderate">pewność: umiarkowana</span><span class="why">2 badań · &#10004; 2 &#10008; 0 &#8776; 0</span></li><li><span>Znaczna część błędów agentów to błędy postrzegania stanu i trafiania we właściwy element</span><span class="pill verylow">pewność: bardzo niska</span><span class="why">2 badań · &#10004; 2 &#10008; 0 &#8776; 0</span></li><li><span>Treści na ekranie, takie jak pop-upy i wstrzyknięte polecenia, skutecznie przejmują agentów, a proste instrukcje typu ignoruj nie wystarczają</span><span class="pill moderate">pewność: umiarkowana</span><span class="why">5 badań · &#10004; 5 &#10008; 0 &#8776; 0</span></li><li><span>Najsilniejsze obrony są architektoniczne: oddzielenie zaufanego planu od niezaufanych obserwacji i kontrola akcji poza modelem</span><span class="pill verylow">pewność: bardzo niska</span><span class="why">3 badań · &#10004; 2 &#10008; 0 &#8776; 1</span></li></ul><p class="note">Pewność to ocena w stylu GRADE oparta na typie badań, spójności wyników i ryzyku błędu.</p>
+        <h2 id="weryfikacja">Jak zweryfikowano ten tekst</h2><div class="method"><p>Każde cytowanie w tym tekście prowadzi do źródła znalezionego w zaufanych bazach, przejrzanego i sprawdzonego pod kątem wycofania. Przed wygenerowaniem strony factual-research porównał każdy cytat kotwiczący, liczbę i odwołanie z tekstem źródła. Kliknij cytowanie, aby zobaczyć dokładne słowa ze źródła.</p><dl><dt>Pytanie badawcze</dt><dd>How do state-of-the-art computer-use (GUI) agents achieve accurate and fast desktop control, and which techniques could improve a macOS MCP server combining accessibility tree, OCR and screenshots?</dd><dt>Wyszukiwanie</dt><dd>57 zapytań w 3: arxiv, crossref, openalex</dd><dt>Selekcja</dt><dd>1490 unikalnych rekordów przejrzanych, 46 włączonych</dd></dl><div class="bars"><div><span>Poparcie</span><i><b style="width:100%"></b></i><span>100</span></div><div><span>Liczby</span><i><b style="width:100%"></b></i><span>100</span></div><div><span>Cytaty</span><i><b style="width:100%"></b></i><span>100</span></div><div><span>Pokrycie</span><i><b style="width:100%"></b></i><span>100</span></div><div><span>Kalibracja</span><i><b style="width:100%"></b></i><span>100</span></div><div><span>Równowaga i zakres</span><i><b style="width:100%"></b></i><span>100</span></div></div></div>
+        <p class="colophon">Wygenerowano przez factual-research 0.4.0, 8 października 2026. Automatyczna weryfikacja nie zastępuje recenzji eksperckiej.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="pop-src" hidden>
+  <button class="p-close" type="button" aria-label="Zamknij">&times;</button>
+  <p class="p-src" id="pop-src"></p>
+  <p class="p-ref"></p>
+  <blockquote hidden></blockquote>
+  <div class="p-foot"></div>
+</div>
+
+<script>
+(function(){
+  var T={"loc": "Miejsce", "verified": "cytat potwierdzony w źródle", "verified_ft": "cytat potwierdzony w pełnym tekście", "goto": "Przejdź do bibliografii", "unknown": "Nieznane źródło"};
+  var root=document.documentElement;
+  try{var saved=localStorage.getItem('fr-theme');if(saved)root.dataset.theme=saved;}catch(e){}
+  document.getElementById('theme').addEventListener('click',function(){
+    var cur=root.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    var next=cur==='dark'?'light':'dark';root.dataset.theme=next;
+    try{localStorage.setItem('fr-theme',next);}catch(e){}
+  });
+  document.getElementById('print').addEventListener('click',function(){window.print();});
+
+  var bar=document.getElementById('bar'),h1=document.querySelector('h1');
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es){bar.classList.toggle('scrolled',!es[0].isIntersecting);}).observe(h1);
+  }
+  var links={};document.querySelectorAll('.toc-d a').forEach(function(a){links[a.getAttribute('href').slice(1)]=a;});
+  var heads=[].slice.call(document.querySelectorAll('.prose h2[id],.prose h3[id]')),ticking=false;
+  function spy(){
+    ticking=false;var cur=null,lim=window.innerHeight*0.3;
+    for(var i=0;i<heads.length;i++){if(heads[i].getBoundingClientRect().top<lim)cur=heads[i].id;}
+    if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-4&&heads.length)cur=heads[heads.length-1].id;
+    Object.keys(links).forEach(function(k){links[k].setAttribute('aria-current',k===cur?'true':'false');});
+  }
+  window.addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(spy);}},{passive:true});
+  spy();
+
+  var pop=document.getElementById('pop'),src=pop.querySelector('.p-src'),ref=pop.querySelector('.p-ref'),
+      bq=pop.querySelector('blockquote'),foot=pop.querySelector('.p-foot'),openFor=null;
+  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+  function place(a){
+    var r=a.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight,sx=window.scrollX,sy=window.scrollY;
+    var left=Math.min(Math.max(8,r.left+r.width/2-pw/2),document.documentElement.clientWidth-pw-8);
+    var top=r.bottom+8;if(top+ph>window.innerHeight-8&&r.top-ph-8>60)top=r.top-ph-8;
+    pop.style.left=(left+sx)+'px';pop.style.top=(top+sy)+'px';
+  }
+  function close(back){
+    if(!openFor)return;pop.classList.remove('on');pop.hidden=true;openFor.setAttribute('aria-expanded','false');
+    if(back)openFor.focus();openFor=null;
+  }
+  function open(a){
+    if(openFor===a){close(true);return;}
+    close(false);
+    var k=a.dataset.key,li=document.getElementById('ref-'+k);
+    src.textContent=a.dataset.label||a.textContent;
+    ref.innerHTML=li?li.querySelector('.rt').innerHTML:esc(T.unknown);
+    if(a.dataset.quote){bq.hidden=false;bq.textContent='„'+a.dataset.quote+'”';}else{bq.hidden=true;}
+    var f=[];
+    if(a.dataset.loc)f.push('<span>'+esc(T.loc)+': '+esc(a.dataset.loc)+'</span>');
+    if(a.dataset.quote)f.push('<span class="ok-mark">✓ '+esc(a.dataset.depth==='fulltext'?T.verified_ft:T.verified)+'</span>');
+    if(li)f.push('<a href="#ref-'+k+'">'+esc(T.goto)+'</a>');
+    foot.innerHTML=f.join('');
+    pop.hidden=false;place(a);requestAnimationFrame(function(){pop.classList.add('on');});
+    a.setAttribute('aria-expanded','true');openFor=a;
+  }
+  document.querySelectorAll('.cite[data-key]').forEach(function(a){
+    a.setAttribute('aria-haspopup','dialog');a.setAttribute('aria-expanded','false');a.setAttribute('aria-controls','pop');
+    a.addEventListener('click',function(ev){ev.preventDefault();open(a);if(ev.detail===0)pop.querySelector('.p-close').focus();});
+  });
+  pop.querySelector('.p-close').addEventListener('click',function(){close(true);});
+  pop.addEventListener('click',function(ev){if(ev.target.matches('.p-foot a'))close(false);});
+  document.addEventListener('keydown',function(ev){if(ev.key==='Escape')close(true);});
+  document.addEventListener('click',function(ev){if(openFor&&!pop.contains(ev.target)&&!ev.target.closest('.cite'))close(false);});
+  window.addEventListener('resize',function(){if(openFor)place(openFor);});
+})();
+</script>
+</body>
+</html>

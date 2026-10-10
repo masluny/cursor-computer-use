@@ -86,6 +86,7 @@ def windows() -> list[dict]:
         if b.get("Width", 0) < 40 or b.get("Height", 0) < 40:
             continue
         out.append({
+            "number": int(w.get("kCGWindowNumber") or 0),
             "app": str(w.get("kCGWindowOwnerName") or ""),
             "pid": int(w.get("kCGWindowOwnerPID") or 0),
             "title": str(w.get("kCGWindowName") or ""),
@@ -246,6 +247,7 @@ def _roots(app) -> list:
 
 
 _ax_enabled: set[int] = set()  # pids already asked to expose their accessibility tree
+_UNBOUNDED = (-1e6, -1e6, 2e6, 2e6)
 
 
 def snapshot(pid: int, screen: tuple[float, float, float, float], limit: int = 150,
@@ -266,10 +268,12 @@ def snapshot(pid: int, screen: tuple[float, float, float, float], limit: int = 1
     deadline = time.monotonic() + budget_s
     elements: list[Element] = []
     statics: list[Element] = []
-    seen_frames: set[tuple[int, int, int, int]] = set()
+    seen_frames: dict[tuple[int, int, int, int], int] = {}  # frame -> index in elements
     visited = 0
     truncated = False
-    stack = [(r, screen) for r in reversed(_roots(app))]
+    # An open menu lists all its items, also those past the screen edge: they can still be chosen (AXPress), and
+    # a long list (countries) would otherwise need blind scrolling.
+    stack = [(r, _UNBOUNDED if _attr(r, "AXRole") == "AXMenu" else screen) for r in reversed(_roots(app))]
     while stack:
         if len(elements) >= limit or visited >= max_nodes or time.monotonic() > deadline:
             truncated = True
@@ -297,8 +301,10 @@ def snapshot(pid: int, screen: tuple[float, float, float, float], limit: int = 1
         listed = role in INTERACTIVE_ROLES or (role in PRESSABLE_ROLES and visible and "AXPress" in _actions(el))
         if listed and visible:
             key = tuple(round(v) for v in frame)
-            if key not in seen_frames:
-                seen_frames.add(key)
+            same = seen_frames.get(key)
+            # A control replaces a generic wrapper of the same size: web search fields sit in a clickable group
+            # that loses its only text (the placeholder) once something is typed, so keep the field itself.
+            if same is None or (elements[same].role in PRESSABLE_ROLES and role not in PRESSABLE_ROLES):
                 label = (_text(a["AXTitle"]) or _text(a["AXDescription"])
                          or ("" if role in TEXT_ROLES else _text(a["AXValue"]))
                          or _text(a["AXHelp"]) or _text(a["AXPlaceholderValue"]))
@@ -312,26 +318,58 @@ def snapshot(pid: int, screen: tuple[float, float, float, float], limit: int = 1
                     value = "on" if str(a["AXValue"]) in ("1", "True") else "off"
                 elif role in ("AXSlider", "AXIncrementor"):
                     value = _text(a["AXValue"])
-                texts = [(t, off) for t, off in ((_text(a["AXTitle"], 120), 0), (_text(a["AXDescription"], 120), 0),
-                                                  (_text(a["AXPlaceholderValue"], 120), 0),
-                                                  (_text(a["AXHelp"], 120), -10)) if t]
-                if role not in TEXT_ROLES and _text(a["AXValue"], 120):
-                    texts.append((_text(a["AXValue"], 120), 0))  # e.g. the selected item of a pop-up
-                if label and not texts:
-                    texts.append((label, -3))  # from descendant text
-                elements.append(Element(el, role, str(a["AXSubrole"] or ""), label, value, frame,
-                                        a["AXEnabled"] is not False, a["AXFocused"] is True, tuple(texts)))
+                item = Element(el, role, str(a["AXSubrole"] or ""), label, value, frame,
+                               a["AXEnabled"] is not False, a["AXFocused"] is True, match_texts(a, role, label))
+                if same is None:
+                    seen_frames[key] = len(elements)
+                    elements.append(item)
+                else:
+                    elements[same] = item
         if role in LEAF_ROLES:
             continue
         stack.extend((c, clip) for c in reversed(_children(el)))
     return elements + statics, truncated
 
 
-def focused_summary(pid: int) -> str:
-    """Where typed text would go right now, e.g. 'text field "Search" = "abc"'."""
+def match_texts(a: dict, role: str, label: str) -> tuple[tuple[str, int], ...]:
+    """(text, score offset) pairs an element can be found by: its names, placeholder and help; a pop-up's selected
+    item; a text field's current content ("the field that says My Playlist #45"). Content ranks low enough that only
+    fill (which prefers inputs) picks a field by it; click_text keeps choosing visible text and links."""
+    texts = [(t, off) for t, off in ((_text(a.get("AXTitle"), 120), 0), (_text(a.get("AXDescription"), 120), 0),
+                                      (_text(a.get("AXPlaceholderValue"), 120), 0),
+                                      (_text(a.get("AXHelp"), 120), -10)) if t]
+    value = _text(a.get("AXValue"), 120)
+    if value:
+        texts.append((value, -20 if role in TEXT_ROLES else 0))
+    if label and not texts:
+        texts.append((label, -3))  # from descendant text
+    return tuple(texts)
+
+
+# pid -> the element we focused through AXFocused. An app in the background (hidden display) often reports no
+# AXFocusedUIElement although the field itself still says AXFocused (seen in Safari web apps).
+_focus_hint: dict[int, Any] = {}
+
+
+def note_focus(pid: int, ref) -> None:
+    _focus_hint[pid] = ref
+
+
+def focused_element(pid: int):
+    """The app's focused element, or the field we focused in it when the app does not report one."""
     app = AS.AXUIElementCreateApplication(pid)
     AS.AXUIElementSetMessagingTimeout(app, 0.5)
     el = _attr(app, "AXFocusedUIElement")
+    if el is None:
+        hint = _focus_hint.get(pid)
+        if hint is not None and _attr(hint, "AXFocused") is True:
+            return hint
+    return el
+
+
+def focused_summary(pid: int) -> str:
+    """Where typed text would go right now, e.g. 'text field "Search" = "abc"'."""
+    el = focused_element(pid)
     if el is None:
         return "nothing focused"
     a = _attrs(el, ["AXRole", "AXSubrole", "AXTitle", "AXDescription", "AXValue", "AXPlaceholderValue"])
@@ -344,10 +382,19 @@ def focused_summary(pid: int) -> str:
     return out
 
 
+def focused_input(pid: int) -> tuple[tuple[float, float, float, float] | None, bool]:
+    """(frame, is_search) of the focused text field; (None, False) when focus is not in a text field."""
+    el = focused_element(pid)
+    if el is None:
+        return None, False
+    a = _attrs(el, ["AXRole", "AXSubrole", "AXPosition", "AXSize"])
+    if a["AXRole"] not in TEXT_ROLES and a["AXSubrole"] != "AXSearchField":
+        return None, False
+    return _frame(a["AXPosition"], a["AXSize"]), a["AXSubrole"] == "AXSearchField" or a["AXRole"] == "AXComboBox"
+
+
 def focused_is_text_input(pid: int) -> bool:
-    app = AS.AXUIElementCreateApplication(pid)
-    AS.AXUIElementSetMessagingTimeout(app, 0.5)
-    el = _attr(app, "AXFocusedUIElement")
+    el = focused_element(pid)
     if el is None:
         return False
     a = _attrs(el, ["AXRole", "AXSubrole"])
@@ -440,10 +487,11 @@ def _listing(items: list) -> str:
     return ", ".join(out) or "(empty)"
 
 
-def menu_select(pid: int, path: list[str]) -> tuple[bool, str]:
+def menu_select(pid: int, path: list[str], escape=None) -> tuple[bool, str]:
     """Press a menu command by path, e.g. ["File", "Export", "PDF…"].
 
     A path that ends at a menu (not a command) lists that menu instead; an empty path lists the menu bar.
+    Menus opened only to read them are closed with escape(n) (default: n global Escape presses).
     Returns (pressed, description)."""
     app = AS.AXUIElementCreateApplication(pid)
     AS.AXUIElementSetMessagingTimeout(app, 2.0)
@@ -484,7 +532,7 @@ def menu_select(pid: int, path: list[str]) -> tuple[bool, str]:
     finally:
         if opened:
             from . import inputs
-            inputs.key("escape", repeat=len(opened) + 1)
+            (escape or (lambda n: inputs.key("escape", repeat=n)))(len(opened) + 1)
 
 
 def find_by_label(labels: dict[int, str], text: str) -> tuple[list[int], str]:
@@ -535,16 +583,216 @@ def element_at(x: float, y: float) -> tuple[Any, str, list[str]]:
     return node, kind + (f' "{label}"' if label else ""), texts
 
 
-def related(a, b, depth: int = 8) -> bool:
-    """True when a and b are the same element or one contains the other."""
-    if a is None or b is None:
-        return False
-    for start, other in ((a, b), (b, a)):
-        node = start
-        for _ in range(depth):
-            if node is None:
-                break
-            if node == other:
-                return True
-            node = _attr(node, "AXParent")
+def within(inner, outer, depth: int = 12) -> bool:
+    """inner is outer or sits inside it."""
+    node = inner
+    for _ in range(depth):
+        if node is None:
+            return False
+        if node == outer:
+            return True
+        node = _attr(node, "AXParent")
     return False
+
+
+def reach(x: float, y: float, ref, describe: bool = True) -> tuple[bool | None, str]:
+    """Whether a click at global point (x, y) lands on ref. True when the deepest element there is ref, inside it,
+    or a control wrapping it (the button around a label). False, with what is there, when something sits on top
+    (a sticky header, a pop-up) or when only a container of ref is there: ref is then scrolled out of the visible
+    part of its list, although the accessibility tree still places it on screen. None when untestable. The
+    description is of the control at the point (skipped on a hit when describe is False)."""
+    sw = AS.AXUIElementCreateSystemWide()
+    AS.AXUIElementSetMessagingTimeout(sw, 0.5)
+    err, hit = AS.AXUIElementCopyElementAtPosition(sw, float(x), float(y), None)
+    if err != 0 or hit is None:
+        return None, ""
+    if within(hit, ref) or within(ref, hit, depth=3) and str(_attr(hit, "AXRole") or "") in _CONTROL_ROLES:
+        return True, element_at(x, y)[1] if describe else ""
+    return False, element_at(x, y)[1] or "something else"
+
+
+_NOT_A_ROW = {"AXWindow", "AXWebArea", "AXApplication", "AXScrollArea", "AXList", "AXTable", "AXOutline",
+              "AXMenu", "AXMenuBar", "AXSheet", "AXDrawer"}
+
+
+def row_context(ref, own: str = "", budget_s: float = 0.12) -> str:
+    """The other texts of the list row (or toolbar strip) around ref, e.g. 'Peggy Sue · Buddy Holly', so that
+    identical controls ("Add", "Delete", "Edit") in different rows can be told apart. "" when there is none."""
+    deadline = time.monotonic() + budget_s
+    own_n = normalize(own)
+    node = _attr(ref, "AXParent")
+    for _ in range(6):
+        if node is None or time.monotonic() > deadline:
+            return ""
+        a = _attrs(node, ["AXRole", "AXPosition", "AXSize"])
+        role = str(a["AXRole"] or "")
+        if role in _NOT_A_ROW:
+            return ""
+        f = _frame(a["AXPosition"], a["AXSize"])
+        if role == "AXRow" or (f is not None and f[3] <= 140 and f[2] >= 2.5 * f[3]):
+            texts = [t for t in _texts_below(node, deadline) if normalize(t) != own_n]
+            if texts:
+                out = " · ".join(dict.fromkeys(texts))
+                return out if len(out) <= 120 else out[:119] + "…"
+        node = _attr(node, "AXParent")
+    return ""
+
+
+def _texts_below(node, deadline: float, limit: int = 40) -> list[str]:
+    out, stack, seen = [], [node], 0
+    while stack and seen < limit and time.monotonic() < deadline:
+        n = stack.pop()
+        seen += 1
+        a = _attrs(n, ["AXRole", "AXValue", "AXTitle"])
+        if a["AXRole"] == "AXStaticText":
+            t = _text(a["AXValue"]) or _text(a["AXTitle"])
+            if t:
+                out.append(t)
+        else:
+            stack.extend(reversed(_children(n)))
+    return out
+
+
+# ---------------------------------------------------------------- background work (no pointer, no keyboard focus)
+
+def pid_of(ref) -> int | None:
+    err, pid = AS.AXUIElementGetPid(ref, None)
+    return int(pid) if err == 0 else None
+
+
+def perform(ref, action: str) -> bool:
+    return ref is not None and AS.AXUIElementPerformAction(ref, action) == 0
+
+
+def set_attr(ref, name: str, value) -> bool:
+    return ref is not None and AS.AXUIElementSetAttributeValue(ref, name, value) == 0
+
+
+def window_refs(pid: int) -> list[tuple[Any, tuple[float, float, float, float], str]]:
+    """(window, frame, title) of the app's normal, not minimized windows."""
+    app = AS.AXUIElementCreateApplication(pid)
+    AS.AXUIElementSetMessagingTimeout(app, 1.0)
+    out = []
+    for w in _attr(app, "AXWindows") or []:
+        a = _attrs(w, ["AXPosition", "AXSize", "AXTitle", "AXMinimized", "AXSubrole"])
+        frame = _frame(a["AXPosition"], a["AXSize"])
+        if frame and a["AXMinimized"] is not True:
+            out.append((w, frame, _text(a["AXTitle"], 200)))
+    return out
+
+
+def set_window_frame(ref, x: float, y: float, w: float | None = None, h: float | None = None) -> bool:
+    """Move (and optionally resize) another app's window. Position first: a window keeps its size limits."""
+    ok = set_attr(ref, "AXPosition", AS.AXValueCreate(AS.kAXValueCGPointType, Quartz.CGPointMake(x, y)))
+    if ok and w and h:
+        set_attr(ref, "AXSize", AS.AXValueCreate(AS.kAXValueCGSizeType, Quartz.CGSizeMake(w, h)))
+    return ok
+
+
+def is_text_input(ref) -> bool:
+    a = _attrs(ref, ["AXRole", "AXSubrole"])
+    return a["AXRole"] in TEXT_ROLES or a["AXSubrole"] == "AXSearchField"
+
+
+def value_of(ref) -> str:
+    v = _attr(ref, "AXValue")
+    return v if isinstance(v, str) else ""
+
+
+def insert_text(ref, text: str, replace: bool = False) -> bool:
+    """Type into a text element without the keyboard. AXSelectedText replaces the selection (= inserts at the
+    caret) and goes through the app's normal editing path, so web pages see input events; AXValue rewriting is
+    the fallback. True when reading the element back shows the text."""
+    before = value_of(ref)
+    if replace and before:
+        set_attr(ref, "AXSelectedTextRange", AS.AXValueCreate(AS.kAXValueCFRangeType, (0, _utf16_len(before))))
+    if set_attr(ref, "AXSelectedText", text):
+        after = value_of(ref)
+        if text in after and (after != before or before == text):
+            return True
+    target = text if replace else before + text
+    return set_attr(ref, "AXValue", target) and value_of(ref) == target
+
+
+def _utf16_len(s: str) -> int:
+    return len(s.encode("utf-16-le")) // 2  # accessibility text ranges count UTF-16 units (an emoji is 2)
+
+
+def select_all(ref) -> bool:
+    """Select all text of a text element through accessibility, without cmd+a (a menu shortcut posted to an app in
+    the background does nothing). True when reading the selection back confirms it."""
+    n = _utf16_len(value_of(ref))
+    if not set_attr(ref, "AXSelectedTextRange", AS.AXValueCreate(AS.kAXValueCFRangeType, (0, n))):
+        return False
+    got = _attr(ref, "AXSelectedTextRange")
+    if got is None or not isinstance(got, AS.AXValueRef):
+        return False
+    ok, r = AS.AXValueGetValue(got, AS.kAXValueCFRangeType, None)
+    return bool(ok) and (r[0], r[1]) == (0, n)
+
+
+def pressable(ref, depth: int = 6):
+    """The element itself or its nearest ancestor that supports AXPress."""
+    node = ref
+    for _ in range(depth):
+        if node is None:
+            return None
+        if "AXPress" in _actions(node):
+            return node
+        node = _attr(node, "AXParent")
+    return None
+
+
+# AXMenuItemCmdModifiers: Command is implied unless bit 8 is set.
+_MENU_MODS = {"shift": 1, "alt": 2, "ctrl": 4}
+
+
+def menu_item_for_shortcut(pid: int, mods: list[str], key: str, budget_s: float = 1.5) -> tuple[Any, str] | None:
+    """(menu item, "File > New Window") whose keyboard shortcut is mods+key, so a shortcut can be run through
+    the app's menu while it is in the background. None when no menu item has that shortcut."""
+    want = sum(v for k, v in _MENU_MODS.items() if k in mods) | (0 if "cmd" in mods else 8)
+    char = key.upper() if len(key) == 1 else None
+    if char is None:
+        return None
+    app = AS.AXUIElementCreateApplication(pid)
+    AS.AXUIElementSetMessagingTimeout(app, 1.0)
+    bar = _attr(app, "AXMenuBar")
+    deadline = time.monotonic() + budget_s
+    stack = [(c, []) for c in reversed(_children(bar))] if bar is not None else []
+    while stack and time.monotonic() < deadline:
+        node, path = stack.pop()
+        a = _attrs(node, ["AXRole", "AXTitle", "AXMenuItemCmdChar", "AXMenuItemCmdModifiers", "AXEnabled"])
+        title = _text(a["AXTitle"], 60)
+        if a["AXRole"] == "AXMenuItem" and str(a["AXMenuItemCmdChar"] or "").upper() == char \
+                and int(a["AXMenuItemCmdModifiers"] or 0) == want and a["AXEnabled"] is not False:
+            return node, " > ".join(path + [title])
+        for child in reversed(_children(node)):
+            stack.append((child, path + [title] if title else path))
+    return None
+
+
+def scroll_by(x: float, y: float, direction: str, amount: int = 5) -> bool:
+    """Scroll the scroll area under a point by moving its scroll bar: no wheel events, no pointer.
+    amount is in wheel notches (~80 points of content each)."""
+    node, _, _ = element_at(x, y)
+    for _ in range(12):
+        if node is None or _attr(node, "AXRole") == "AXScrollArea":
+            break
+        node = _attr(node, "AXParent")
+    if node is None:
+        return False
+    vertical = direction in ("up", "down")
+    bar = _attr(node, "AXVerticalScrollBar" if vertical else "AXHorizontalScrollBar")
+    value = _attr(bar, "AXValue") if bar is not None else None
+    if not isinstance(value, (int, float)):
+        return False
+    view = element_frame(node)
+    contents = next((element_frame(c) for c in _children(node) if _attr(c, "AXRole") != "AXScrollBar"), None)
+    if not view or not contents:
+        return False
+    hidden = (contents[3] - view[3]) if vertical else (contents[2] - view[2])
+    if hidden <= 1:
+        return False
+    step = amount * 80 / hidden * (1 if direction in ("down", "right") else -1)
+    return set_attr(bar, "AXValue", float(min(1.0, max(0.0, value + step))))
+

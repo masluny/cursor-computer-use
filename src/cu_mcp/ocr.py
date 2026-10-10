@@ -36,7 +36,7 @@ _memo: dict[str, Any] = {"t": 0.0, "region": None, "boxes": []}
 
 
 def recognize(region: tuple[float, float, float, float] | None = None) -> list[TextBox]:
-    """Text lines on the main display (or a region of it, in points), top to bottom."""
+    """Text lines on the work display (or a region of it, in points), top to bottom."""
     if _memo["region"] == region and time.monotonic() - _memo["t"] < 0.25:
         return _memo["boxes"]
     boxes = _recognize(region)
@@ -46,7 +46,7 @@ def recognize(region: tuple[float, float, float, float] | None = None) -> list[T
 
 def _recognize(region) -> list[TextBox]:
     if region is None:
-        b = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
+        b = screen.display_bounds()
         region = (b.origin.x, b.origin.y, b.size.width, b.size.height)
     rx, ry, rw, rh = region
     img = screen.cg_image(Quartz.CGRectMake(rx, ry, rw, rh), best=True)
@@ -105,7 +105,7 @@ class Hit:
 def locate(query: str, region=None) -> list[Hit]:
     """Places on screen where query is written, best first; the frame covers just the matched words."""
     if region is None:
-        b = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
+        b = screen.display_bounds()
         region = (b.origin.x, b.origin.y, b.size.width, b.size.height)
     q = ax.normalize(query)
     raw = query.strip().lower()

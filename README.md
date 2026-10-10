@@ -69,6 +69,7 @@ MCP Cursora). Możesz też po prostu kliknąć Stop w czacie.
 | `wait`, `clipboard`, `batch` | czekanie, schowek, kilka akcji z jednym zrzutem na końcu |
 | `app_action(app, action, args)` | gotowe akcje AppleScript: Muzyka/Spotify (play, pause, utwór), Notatki, Przypomnienia, Safari, Finder, szkic maila, głośność |
 | `recipe_save`, `recipe_run`, `recipe_list` | zapis udanego przebiegu z parametrami i odtworzenie go jednym wywołaniem |
+| `run_goal(goal, texts, app)` | Jev (szybki model decyzyjny przez OpenRouter) sam przeklikuje krótki cel, ok. 1 s na krok |
 
 Każda akcja czeka, aż ekran przestanie się zmieniać, i zwraca nowy zrzut oraz informację, gdzie jest fokus klawiatury. Jeśli nic się nie zmieniło, zamiast obrazka wraca „No visible change”, co jest sygnałem dla modelu i oszczędza tokeny.
 
@@ -84,7 +85,45 @@ Przepisy (`~/Library/Application Support/cursor-computer-use/recipes/`) to zapis
 z parametrami, np. `spotify-like-song(song)`. Pierwszy zrzut zadania pokazuje ich listę, a `recipe_run`
 odtwarza całość jednym wywołaniem i oddaje sterowanie Grokowi przy pierwszym kroku, który nie pasuje do ekranu.
 
-Pisanie w Cursorze, terminalach i menedżerach haseł jest zablokowane (`CU_PROTECTED_APPS`), a linki `tel:`, `facetime:`, `sms:`, `file:`, `shortcuts:` i podobne nie są otwierane.
+W samym Cursorze agent też nie klika (`CU_HOST_APPS`): to czat, w którym działa, a kliknięcie mogłoby nacisnąć jego przyciski. Pisanie w Cursorze, terminalach i menedżerach haseł jest zablokowane (`CU_PROTECTED_APPS`), a linki `tel:`, `facetime:`, `sms:`, `file:`, `shortcuts:` i podobne nie są otwierane.
+
+### Jev: szybkie przeklikiwanie (`run_goal`)
+
+Najwięcej czasu zajmuje myślenie modelu przed każdym kliknięciem (u Groka ok. 7-8 s na turę). `run_goal`
+oddaje krótki cel, np. „otwórz Prywatność i włącz blokowanie wszystkich ciasteczek”, modelowi
+[Jev](https://openrouter.ai/typesafe/jev-1.13) firmy TypeSafe. To model decyzyjny, nie czat: dostaje cel,
+widoczny tekst okna i listę możliwych akcji (klikalne elementy z Accessibility, wpisanie tekstów podanych przez
+Groka, Return, Escape, przewijanie), a zwraca wybraną akcję z prawdopodobieństwem. Serwer wykonuje ją tymi
+samymi funkcjami co zwykłe narzędzia (te same okienka potwierdzeń, blokady i zapis do przepisów) i pyta znowu.
+Pętla kończy się, gdy Jev uzna cel za osiągnięty, gdy jest niepewny (`CU_JEV_MIN_PROB`), gdy dwie akcje z rzędu
+nic nie zmieniły albo po `max_steps`. Grok dostaje log i zrzut ekranu i prowadzi dalej. Tak samo działa
+Jev-Mobile (arXiv 2609.30186): model wizyjny wyznacza cele, a drzewo Accessibility wyznacza możliwe akcje.
+
+Jev nie pisze tekstu, więc tekst do wpisania podaje Grok w `texts`. Nie nadaje się do ikon bez etykiet
+i do decyzji, których cel nie określa. W aplikacjach chronionych (`CU_PROTECTED_APPS`, np. Cursor) `run_goal`
+nie działa wcale.
+
+**Włączenie:** utwórz klucz na [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) i doładuj
+konto (Jev nie ma darmowego progu). Sam dopisz klucz w `~/.cursor/mcp.json`, w sekcji `env` serwera
+`computer-use` (nie wklejaj go do czatu):
+
+```json
+"computer-use": {
+  "type": "stdio",
+  "command": ".../cursor-computer-use/.venv/bin/python",
+  "args": ["-m", "cu_mcp"],
+  "env": { "OPENROUTER_API_KEY": "sk-or-..." }
+}
+```
+
+Potem zamknij Cursora (cmd+Q) i otwórz go ponownie. `.venv/bin/cursor-computer-use --check-jev` robi
+3 próbne decyzje (razem poniżej 0,1 grosza) i pokazuje opóźnienie. `install.sh` przy ponownej instalacji
+zachowuje sekcję `env`.
+
+**Koszt i prywatność:** płacisz tylko za wejście, ok. $0.042 za 1M tokenów. Jeden krok to zwykle 1-3 tys.
+tokenów, czyli ułamek grosza. Do OpenRoutera i TypeSafe trafia cel, tekst widoczny w oknie aplikacji z przodu
+i nazwy jej przycisków, ale nie zrzut ekranu. Nie używaj `run_goal` na oknach z danymi, których nie chcesz
+wysyłać.
 
 ### Efekty na ekranie
 
@@ -96,6 +135,38 @@ jest blokowana po zdarzeniach Groka. Ramka gaśnie od razu, gdy sam ruszysz mysz
 
 Nakładka to osobny proces (`overlay.py`) z oknem, które przepuszcza kliknięcia, nie zabiera fokusu
 i jest wyłączone z przechwytywania ekranu, więc Grok nie widzi jej na zrzutach.
+
+### Praca w tle (przycisk „Work in background”)
+
+Kiedy Grok pracuje, w prawym dolnym rogu, obok Docka, jest przycisk **Work in background**. Po
+kliknięciu serwer tworzy niewidoczny, wirtualny ekran („nowy pulpit”) i przenosi na niego okna aplikacji,
+w której pracuje Grok. Grok działa dalej na tamtym ekranie, a Ty normalnie używasz Maca: kursor i
+klawiatura są Twoje, ramka gaśnie. Przycisk zmienia się na **Working in background · Show** i jego
+kliknięcie odstawia okna dokładnie tam, gdzie były.
+
+Jak to działa:
+- macOS nie ma publicznego API do tworzenia pulpitów (Spaces) ani do przenoszenia cudzych okien między
+  nimi, więc „pulpit” to wirtualny monitor (prywatna klasa `CGVirtualDisplay`, tej samej używają DeskPad
+  i BetterDisplay). Stoi po skosie od prawego dolnego rogu Twojego ekranu i dotyka go w jednym punkcie,
+  więc kursor praktycznie na niego nie trafia. Okna na nim normalnie się rysują, a znikają razem z serwerem;
+  macOS sam przenosi je wtedy z powrotem.
+- W tle Grok nie używa myszy ani klawiatury: klika przez Accessibility (AXPress), pisze prosto do pola
+  (AXSelectedText / AXValue, z odczytem kontrolnym), skróty wykonuje przez menu aplikacji, a Return/Escape
+  przez AXConfirm/AXCancel. Gdy aplikacja tego nie obsługuje, zdarzenie idzie tylko do niej
+  (`CGEventPostToPid`), bez ruszania kursora.
+- Okna, które aplikacja otworzy w trakcie, trafiają na ukryty ekran, a jeśli aplikacja ukradnie fokus,
+  serwer oddaje go Twojej aplikacji.
+- Nie działają: przeciąganie i najeżdżanie myszą. Grok dostaje wtedy komunikat, żeby poprosić Cię o
+  **Show**.
+- Przycisk nie pojawia się na zrzutach i serwer nie pozwoli Grokowi go kliknąć.
+
+Sprawdzenie na Twoim Macu (w terminalu Cursora, bo to Cursor ma uprawnienia): przenosi świeży dokument
+TextEdit na ukryty ekran, wpisuje do niego tekst bez klawiatury i sprawdza OCR-em, że tekst tam jest.
+Z nazwą aplikacji testuje ją zamiast TextEdit (wpisuje i czyści tekst w jej pierwszym polu):
+
+```bash
+.venv/bin/cursor-computer-use --check-background
+```
 
 ### Dlaczego Grok trafia w przyciski
 
@@ -117,7 +188,11 @@ precyzyjne, więc serwer daje im podpórki:
 | `CU_JPEG_QUALITY` | `80` | jakość JPEG |
 | `CU_SETTLE` | `0.12` | minimalne czekanie po akcji |
 | `CU_SETTLE_MAX` | `1.5` | maksymalne czekanie, aż ekran przestanie się zmieniać |
+| `CU_SETTLE_QUIET` | `0.3` | jak długo ekran musi stać bez zmian, żeby uznać go za gotowy |
+| `CU_SETTLE_LATE` | `2.5` | po naciśnięciu przez Accessibility: ile s czekać na spóźniony efekt (aplikacje webowe) |
+| `CU_SETTLE_SEARCH` | `1.2` | po wpisaniu w pole wyszukiwania: ile s czekać na wyniki |
 | `CU_PROTECTED_APPS` | `Cursor,Terminal,iTerm2,Ghostty,Warp,Passwords,Keychain Access` | aplikacje, w których pisanie jest zablokowane |
+| `CU_HOST_APPS` | `Cursor` | czat, w którym działa agent: nie klika, nie przewija i nie wypełnia w nim nic |
 | `CU_OCR_LANGUAGES` | `pl-PL,en-US` | języki OCR |
 | `CU_FAST_CAPTURE` | `1` | `0` = zrzuty przez `screencapture` zamiast w procesie |
 | `CU_GRID` | `0` | `1` = siatka na każdym zrzucie |
@@ -131,10 +206,21 @@ precyzyjne, więc serwer daje im podpórki:
 | `CU_CONFIRM` | `1` | `0` = bez okienek potwierdzenia (niezalecane) |
 | `CU_CONFIRM_WORDS` | wyślij, kup, zapłać, usuń… | słowa wymagające potwierdzenia (po przecinku) |
 | `CU_RECIPES_DIR` | `~/Library/Application Support/cursor-computer-use/recipes` | gdzie leżą przepisy |
+| `OPENROUTER_API_KEY` | brak | klucz OpenRouter dla `run_goal` (bez niego narzędzie jest wyłączone) |
+| `CU_JEV_MODEL` | `typesafe/jev-1.13` | model Jev (`~typesafe/jev-latest` = zawsze najnowszy) |
+| `CU_JEV_MIN_PROB` | `0.5` | poniżej tego prawdopodobieństwa Jev oddaje sterowanie Grokowi |
+| `CU_JEV_TIMEOUT` | `10` | limit czasu jednej decyzji w s |
+| `CU_BACKGROUND_LABEL` | `Work in background` | napis na przycisku |
+| `CU_FOREGROUND_LABEL` | `Working in background · Show` | napis na przycisku w trybie w tle |
+| `CU_BUTTON_GRACE` | `4` | ile s przycisk zostaje po tym, jak ruszysz myszą (dłużej, gdy kursor jest przy nim) |
+| `CU_BACKGROUND_LATE` | `1.0` | w tle: ile s czekać na spóźniony efekt naciśnięcia |
 
 ## Ograniczenia
 
-- Tylko główny monitor.
+- Tylko główny monitor (plus ukryty ekran trybu w tle).
+- Tryb w tle korzysta z prywatnego API macOS (`CGVirtualDisplay`); jeśli przyszła wersja systemu je zmieni,
+  przycisk pokaże błąd, a zwykła praca dalej działa. Część aplikacji ignoruje zdarzenia, gdy nie są
+  aktywne: wtedy Grok poprosi o **Show**.
 - Skróty klawiszowe używają pozycji klawiszy z układu US (pisanie tekstu działa w każdym układzie).
 - Jakość `marks` zależy od aplikacji: natywne aplikacje macOS są świetne, Electron i strony WWW
   czasem potrzebują drugiego wywołania, gry i aplikacje rysujące same siebie nie mają drzewa.

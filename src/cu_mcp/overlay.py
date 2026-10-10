@@ -1,5 +1,6 @@
 """On-screen effects while the agent controls the Mac: a glowing border around the screen, a halo with a
-label that follows the mouse, ripples on clicks and a status pill under the menu bar.
+label that follows the mouse, ripples on clicks, a status pill under the menu bar, and a "Work in background"
+button next to the Dock (the only part that takes clicks; it reports them on stdout).
 
 Runs as its own process because AppKit needs a main thread with a run loop; the MCP server writes JSON
 lines to stdin (see effects.py) and the process exits when that pipe closes. The window is click-through,
@@ -21,11 +22,17 @@ import Quartz
 from PyObjCTools import AppHelper
 
 IDLE_HIDE = float(os.environ.get("CU_OVERLAY_IDLE", "15"))  # seconds without tool calls before fading out
+# After the user takes the mouse the glow goes at once; the button stays this long (and while the pointer is near
+# it), so the user can still reach it, then goes too.
+BUTTON_GRACE = float(os.environ.get("CU_BUTTON_GRACE", "4"))
+BUTTON_NEAR_PT = 140.0
 USER_TAKEOVER_PT = 40.0  # the user moving the mouse this far (while the agent is not pointing) hides everything
 POINTER_LINGER = 1.2  # the cursor halo shows while the agent moves/clicks and this long after, never on the user's own moves
 LABEL = os.environ.get("CU_OVERLAY_LABEL", "Grok steruje komputerem · mysz w lewy górny róg = stop")
 CURSOR_LABEL = os.environ.get("CU_CURSOR_LABEL", "Grok")
 COLOR = os.environ.get("CU_OVERLAY_COLOR", "#8B5CF6")
+BUTTON_LABEL = os.environ.get("CU_BACKGROUND_LABEL", "Work in background")
+SHOW_LABEL = os.environ.get("CU_FOREGROUND_LABEL", "Working in background · Show")
 # Debug only: let screencapture see the overlay so its look can be checked from a screenshot.
 CAPTURABLE = os.environ.get("CU_OVERLAY_CAPTURABLE") == "1"
 
@@ -126,6 +133,99 @@ class _Ticker(AppKit.NSObject):
         self.callback()
 
 
+def button_wanted(background: bool, glow: bool, pending: bool, since_active: float, since_glow_off: float,
+                  pointer_near: bool) -> bool:
+    """Show the button in background mode, with the glow, while a click is being answered, and briefly after the
+    user took the mouse (longer while the pointer is near it), but never after the session went idle."""
+    if background or glow or pending:
+        return True
+    if since_active >= IDLE_HIDE:
+        return False
+    return since_glow_off < BUTTON_GRACE or pointer_near
+
+
+class _ClickView(AppKit.NSView):
+    """Content of the button panel. Takes the very first click although this process is never active."""
+
+    def initWithFrame_callback_(self, frame, callback):
+        self = objc.super(_ClickView, self).initWithFrame_(frame)
+        if self is not None:
+            self.callback = callback
+        return self
+
+    def acceptsFirstMouse_(self, event):
+        return True
+
+    def mouseDown_(self, event):
+        self.callback()
+
+    def resetCursorRects(self):
+        self.addCursorRect_cursor_(self.bounds(), AppKit.NSCursor.pointingHandCursor())
+
+
+class _Button:
+    """Pill in the bottom-right corner next to the Dock. A non-activating panel: clicking it neither activates
+    this process nor takes keyboard focus from the user's app."""
+
+    def __init__(self, screen, scale: float, on_click):
+        self.screen, self.scale = screen, scale
+        panel = AppKit.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+            AppKit.NSMakeRect(0, 0, 10, 10),
+            AppKit.NSWindowStyleMaskBorderless | AppKit.NSWindowStyleMaskNonactivatingPanel,
+            AppKit.NSBackingStoreBuffered, False)
+        panel.setOpaque_(False)
+        panel.setBackgroundColor_(AppKit.NSColor.clearColor())
+        panel.setHasShadow_(False)
+        panel.setFloatingPanel_(True)  # sets the floating level (3, under the Dock), so the level comes after
+        panel.setLevel_(Quartz.CGWindowLevelForKey(Quartz.kCGStatusWindowLevelKey))  # above the Dock
+        panel.setBecomesKeyOnlyIfNeeded_(True)
+        panel.setHidesOnDeactivate_(False)
+        panel.setCollectionBehavior_(
+            AppKit.NSWindowCollectionBehaviorCanJoinAllSpaces | AppKit.NSWindowCollectionBehaviorStationary
+            | AppKit.NSWindowCollectionBehaviorFullScreenAuxiliary | AppKit.NSWindowCollectionBehaviorIgnoresCycle)
+        # Left out of screenshots: the agent never sees (or clicks) the user's switch.
+        panel.setSharingType_(AppKit.NSWindowSharingReadOnly if CAPTURABLE else AppKit.NSWindowSharingNone)
+        self.view = _ClickView.alloc().initWithFrame_callback_(AppKit.NSMakeRect(0, 0, 10, 10), on_click)
+        self.view.setWantsLayer_(True)
+        panel.setContentView_(self.view)
+        self.panel = panel
+        self.text = None
+        self.shown = False
+        self.set_text(BUTTON_LABEL)
+
+    def set_text(self, text: str) -> None:
+        if text == self.text:
+            return
+        self.text = text
+        pill, w, h = _text_layer(text, 13, self.scale, AppKit.NSFontWeightSemibold)
+        w, h = math.ceil(w), math.ceil(h)
+        frame, visible = self.screen.frame(), self.screen.visibleFrame()
+        dock = visible.origin.y - frame.origin.y  # Dock height when it sits at the bottom
+        x = visible.origin.x + visible.size.width - w - 14  # left of a Dock on the right edge
+        y = frame.origin.y + ((dock - h) / 2 if dock > h + 4 else 14)
+        self.panel.setFrame_display_(AppKit.NSMakeRect(x, y, w, h), True)
+        self.view.setFrame_(AppKit.NSMakeRect(0, 0, w, h))
+        self.view.layer().setSublayers_(None)
+        pill.setPosition_(Quartz.CGPointMake(w / 2, h / 2))
+        self.view.layer().addSublayer_(pill)
+        self.panel.invalidateCursorRectsForView_(self.view)
+
+    def contains(self, x: float, y: float, margin: float = 0.0) -> bool:
+        """Global CG point (origin top-left) inside the button (grown by margin)?"""
+        f = self.panel.frame()
+        top = self.screen.frame().size.height - (f.origin.y + f.size.height)
+        return (f.origin.x - margin <= x <= f.origin.x + f.size.width + margin
+                and top - margin <= y <= top + f.size.height + margin)
+
+    def show(self, on: bool) -> None:
+        if on != self.shown:
+            self.shown = on
+            if on:
+                self.panel.orderFrontRegardless()
+            else:
+                self.panel.orderOut_(None)
+
+
 class Overlay:
     def __init__(self):
         screen = AppKit.NSScreen.screens()[0]  # the main display, the only one the server acts on
@@ -215,6 +315,13 @@ class Overlay:
 
         win.orderFrontRegardless()
         self.win = win
+        self.app = AppKit.NSApplication.sharedApplication()
+        self.button = _Button(screen, scale, self._on_button)
+        self.background = False
+        self.note_until = 0.0
+        self.last_click = 0.0
+        self.mouse_down = False
+        self.glow_off = 0.0
         self.visible = False
         self.last_active = 0.0
         self.last_pos: tuple[float, float] | None = None
@@ -228,12 +335,53 @@ class Overlay:
     def _local(self, x: float, y: float):
         return Quartz.CGPointMake(x, self.h - y)
 
+    def _pump(self) -> None:
+        """Deliver mouse events to the button. NSApp.run() is avoided on purpose (finishLaunching would activate
+        this process), so queued events are taken and dispatched here."""
+        for _ in range(20):
+            ev = self.app.nextEventMatchingMask_untilDate_inMode_dequeue_(
+                AppKit.NSEventMaskAny, None, AppKit.NSDefaultRunLoopMode, True)
+            if ev is None:
+                return
+            self.app.sendEvent_(ev)
+
+    def _watch_button(self) -> None:
+        """Second way to see a click: the mouse button going down over the panel. Works even if macOS does not
+        hand the click to this never-activated process; the panel still keeps the click from the app below."""
+        down = bool(Quartz.CGEventSourceButtonState(Quartz.kCGEventSourceStateCombinedSessionState,
+                                                    Quartz.kCGMouseButtonLeft))
+        if down and not self.mouse_down and self.button.shown:
+            p = _cursor()
+            if self.button.contains(p.x, p.y):
+                self._on_button()
+        self.mouse_down = down
+
+    def _on_button(self) -> None:
+        now = time.monotonic()
+        if now - self.last_click < 0.8:  # the view's mouseDown and the watcher both report one click
+            return
+        self.last_click = now
+        self.button.set_text("…")
+        self.note_until = time.monotonic() + 8  # until the server answers with "mode"
+        sys.stdout.write(json.dumps({"event": "toggle"}) + "\n")
+        sys.stdout.flush()
+
     def _tick(self) -> None:
         """60 Hz: follow the pointer, and get out of the way as soon as the session is over or the user takes
-        the mouse (the agent announces its own pointer moves with "point", so any other movement is the user's)."""
+        the mouse (the agent announces its own pointer moves with "point", so any other movement is the user's).
+        The button stays while the agent is busy (even after the user took the mouse) and in background mode."""
+        self._pump()
+        self._watch_button()
+        now = time.monotonic()
+        if self.note_until and now > self.note_until:
+            self.note_until = 0.0
+            self.button.set_text(SHOW_LABEL if self.background else BUTTON_LABEL)
+        p = _cursor()
+        self.button.show(button_wanted(self.background, self.visible, bool(self.note_until),
+                                       now - self.last_active, now - self.glow_off,
+                                       self.button.contains(p.x, p.y, BUTTON_NEAR_PT)))
         if not self.visible:
             return
-        now = time.monotonic()
         p = _cursor()
         if now - self.last_active > IDLE_HIDE or (p.x <= 2 and p.y <= 2):
             self._set_visible(False)
@@ -258,6 +406,8 @@ class Overlay:
         Quartz.CATransaction.commit()
 
     def _set_visible(self, on: bool) -> None:
+        if self.visible and not on:
+            self.glow_off = time.monotonic()
         self.visible = on
         self.last_pos, self.user_moved = None, 0.0
         if not on:
@@ -308,7 +458,18 @@ class Overlay:
             self.last_active = 0.0
             self._set_visible(False)
             return
+        if cmd == "mode":
+            self.background = bool(msg.get("background"))
+            note = str(msg.get("note") or "")
+            self.note_until = time.monotonic() + 5 if note else 0.0
+            self.button.set_text(note or (SHOW_LABEL if self.background else BUTTON_LABEL))
+            if self.background:
+                self._set_visible(False)
+            self.last_active = time.monotonic()
+            return
         self.last_active = time.monotonic()
+        if self.background:
+            return  # nothing on the user's screen while the agent works on the hidden display
         if not self.visible:
             self._set_visible(True)
             self._tick()

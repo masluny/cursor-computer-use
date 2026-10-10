@@ -29,16 +29,53 @@ The number of calls is what makes you slow. Spend them on the screen, not on res
      Mail draft, volume): one call, no clicking. `open_url` for any web page or app deep link
      (`spotify:search:take on me`, `https://...`).
   2. `menu("File > Export > PDF")` for menu commands; `key("cmd+l")` for known shortcuts.
-  3. `click_text("Options")` for anything with visible text: buttons, tabs, links, list items, words
-     on a canvas. It checks accessibility, then OCR. One call, no aiming.
-  4. `fill("Take On Me", target="Search", submit=true)` for text fields: click, clear, type, Return.
-  5. `click_element(id)` with ids from `find`, `ui_elements` or `screenshot(marks=true)`.
-  6. `click(x, y)` only for unlabeled targets (icons, map points). For small ones, `zoom` first: its grid
+  3. `run_goal("open Metadata and click Pick on map")` whenever the next two or more steps are clicks on
+     labeled controls you can name: a menu and its item ("Create, then Playlist"), a section and a button
+     in it, settings pages, wizards, forms. Jev, a fast decision model, does them at about 1 s per click
+     instead of one of your turns per click.
+  4. `click_text("Options")` for a single click on anything with visible text: buttons, tabs, links,
+     list items, words on a canvas. It checks accessibility, then OCR. One call, no aiming.
+  5. `fill("Take On Me", target="Search", submit=true)` for text fields: click, clear, type, Return.
+  6. `click_element(id)` with ids from `find`, `ui_elements` or `screenshot(marks=true)`.
+  7. `click(x, y)` only for unlabeled targets (icons, map points). For small ones, `zoom` first: its grid
      is labeled in screenshot coordinates, so click exactly where the grid says.
-- **Wait for what you expect** with `wait_for("Songs")` instead of `wait(2)`.
+- **run_goal details**: spell the goal out in words, name the app if it is not in front
+  (`app="Safari"`), and put any text it must type in `texts` (`texts=["Take On Me"]`): Jev never invents
+  text. It stops when the goal is done, when it is unsure, or when nothing changes; read its log and the
+  screenshot, then continue yourself from where it stopped. Skip it for icons, canvases and choices the
+  goal does not spell out (which song, which version). If it says Jev is not set up, do the work
+  yourself and do not call it again.
+- **Same steps for every item** (songs to add, rows to fill, files to rename): do the whole item in one
+  `batch`, final click included, and check the result once at the end instead of after every item:
+  `[{"action": "fill", "text": "Purple Haze", "target": "Search for songs or episodes"},
+  {"action": "wait_for", "text": "Are You Experienced"},
+  {"action": "click_text", "text": "Add", "near": "Are You Experienced"}]`. If the album you expect
+  does not show up, `wait_for` fails and the batch stops before anything is added, so you need no
+  separate turn to look at the results first.
+  `fill` finds a field by its label or placeholder, or by the text it holds now, and replaces that
+  text, so the same `target` works for every item: no clearing, `read_text` or `click(x, y)` first.
+  After typing into a search field the server waits for the results, and `wait_for` ignores the text
+  you just typed.
+- **Wait for what you expect** with `wait_for("Songs")` instead of `wait(2)`. If an action should have
+  opened, created or added something that the screenshot does not show yet, `wait_for` it or check
+  once at the end. Never press "Create", "Add", "Remove" or Return again, or press Delete, just because a
+  list has not updated: web apps lag, and the second press makes a duplicate or removes another item.
+- **Icon buttons** (×, ⋯, back, +/− on maps) usually have accessibility names: try `click_text("Close")`,
+  `click_text("Zoom out")` or `find("Close")` before `zoom` and before guessing coordinates.
+- If `open_url` or `app_action` says the app is a web app or no app opens the link, do it in the app's own
+  UI (search field, buttons) and do not try other deep links.
 - **Long lists**: `scroll_to("Metadata")` scrolls until the text shows up, in one call.
 - **Same label many times** (an "Add" or "+" per row): `click_text("Add", near="Take on Me")` picks
-  the one next to the text you name.
+  the one in the same row as the text you name, even when that text also appears elsewhere (a song
+  already in the playlist, the query in the search field). Name text that only the right row shows.
+  When the version matters (studio vs live or compilation), name the album or another detail only that
+  row shows (`near="Machine Head"`), not the song title: the top search result is often a live version.
+  The result names the row it clicked. When several rows show your `near` text, or it is not there,
+  nothing is clicked and the error lists every match with the text of its row: `click_element(id)` the
+  right one instead of guessing again. Rows hidden under a header or scrolled out of view are ignored.
+- **Row menus** (remove from a list, more actions): use the row's "More options for <title>" button
+  (`click_text("More options for Highway Star")`), not a right-click on a link inside the row: that
+  opens the link's own menu.
 - **Chain predictable steps** in one `batch`, using `wait_for` as checkpoints, e.g.
   `[{"action": "open_url", "url": "spotify:search:take on me"}, {"action": "wait_for", "text": "Songs"},
   {"action": "click_text", "text": "Take on Me"}]`.
@@ -60,7 +97,8 @@ Seeing:
 - `screenshot(marks=false, grid=false)`: `marks` draws numbered boxes on clickable elements and lists
   their ids; `grid` draws a 100 px coordinate grid.
 - `read_text(x0?, y0?, x1?, y1?)`: OCR text lines with their centers, whole screen or a region.
-- `find(text)`: everything matching text (accessibility ids + OCR coordinates), without clicking.
+- `find(text)`: everything matching text (accessibility ids + OCR coordinates), without clicking; each
+  match in a list shows the text of its row, so identical buttons ("Add", "Delete") can be told apart.
 - `ui_elements(app=null, limit=150)`, `list_apps()`, `zoom(x0, y0, x1, y1, grid=true)`: grid labels are
   full-screenshot coordinates you can click directly.
 
@@ -82,15 +120,21 @@ Acting:
 - `app_action(app, action, args)`: `app_action("?")` lists all; e.g.
   `app_action("notes", "create_note", {"title": "Zakupy", "body": "mleko<br>chleb"})`,
   `app_action("spotify", "play_uri", {"uri": "spotify:track:..."})`, `app_action("music", "now_playing")`.
+- `run_goal(goal, texts=null, app=null, max_steps=8)`: Jev clicks through a short sub-goal in the front
+  app (see "Be fast"); its clicks get the same safety checks and alerts as yours.
 - `recipe_run(name, params)`, `recipe_save(name, description, params, steps?)`, `recipe_list()`.
+- `background(on=true)`: only when the user asks in chat to work in the background (see below).
 - `batch(actions)`: actions click, click_text, click_element, fill, move_mouse, drag, scroll,
-  scroll_to, type_text, key, wait, wait_for, open_app, open_url, menu, app_action (in batch:
+  scroll_to, type_text, key, wait, wait_for, open_app, open_url, menu, run_goal, app_action (in batch:
   `{"action": "app_action", "app": "notes", "do": "create_note", "args": {...}}`).
 
 ## Start
 
 1. `screenshot()`. Say in one line what is on screen and your plan.
-2. Cursor (this chat) is usually in front: bring the target app forward with `open_app`.
+2. Cursor (this chat) is usually in front: bring the target app forward with `open_app`. When the user
+   names an app, even an unfamiliar name, call `open_app(name)` first: it finds installed apps by name and
+   suggests close names. Never use Spotlight or click around in Cursor (both are refused); a folder or
+   project with that name in Cursor's sidebar is not the app.
 3. If a tool reports a missing permission, stop and relay the fix (see Setup problems).
 
 ## Coordinates
@@ -107,10 +151,26 @@ rescales them. Aim at the center of the target.
 - Typing into Cursor, terminals and password managers is blocked on purpose: switch apps first.
 - Shortcuts use US-keyboard letter positions.
 
+## Background mode
+
+The user can click **Work in background** (bottom right, next to the Dock). Your app then moves to a
+hidden display and the user keeps using the Mac; results start with "Background mode". Keep working the
+same way, with these differences:
+- Clicks press elements through accessibility and typing goes straight into the focused field, so prefer
+  `click_text`, `click_element`, `fill` and `menu`. Shortcuts run the matching menu command.
+- `drag` and `move_mouse` (hover) do not work. If a step really needs them, ask the user to click
+  **Show** on that button, then retry.
+- A row under a bar or past the bottom of a list still works with `click_text` and `click_element`
+  (it is pressed through accessibility); `scroll_to` brings it into view when you need to see it.
+- `open_app` opens apps on the hidden display; open links inside the app you work in.
+- When you finish, tell the user to click **Show** to see the result.
+- Never switch modes yourself; use `background(on=...)` only when the user asks for it in chat.
+
 ## When things go wrong
 
 - A click did nothing ("No visible change"): do not retry the same coordinates. Use `click_text`,
-  `find` + `click_element`, or a keyboard alternative.
+  `find` + `click_element`, or a keyboard alternative. "Small change only, at ..." means it did work
+  (a moved pin, a new number): look there before doing anything again.
 - After 3 failed attempts at one step, change approach. If still stuck, stop and tell the user what
   you see and what you tried.
 - An unexpected dialog, permission prompt or login screen: stop and ask the user.

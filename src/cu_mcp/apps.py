@@ -7,7 +7,11 @@ are never spliced into script text. The first use of an app asks the user once t
 
 from __future__ import annotations
 
+import difflib
+import os
+import re
 import subprocess
+import time
 
 # app key -> (application name, {action: (script body using argv, [argument names], description)})
 LIBRARY: dict[str, tuple[str, dict[str, tuple[str, list[str], str]]]] = {
@@ -94,8 +98,22 @@ def resolve(app: str, action: str, args) -> tuple[str, list[str], str]:
     return f"on run argv\n{body}\nend run\n", values, name
 
 
+def web_app(name: str) -> bool:
+    """True for browser web apps (Safari or Chrome "Add to Dock"): they carry a real app's name, but have no
+    AppleScript dictionary and handle no app links."""
+    from AppKit import NSBundle, NSWorkspace
+
+    path = NSWorkspace.sharedWorkspace().fullPathForApplication_(name)
+    bundle = NSBundle.bundleWithPath_(path) if path else None
+    bid = str(bundle.bundleIdentifier() or "") if bundle else ""
+    return bid.startswith(("com.apple.Safari.WebApp", "com.google.Chrome.app."))
+
+
 def run(app: str, action: str, args=None) -> str:
     script, argv, name = resolve(app, action, args)
+    if web_app(name):
+        raise RuntimeError(f"{name} on this Mac is a web app installed from a browser, not the native app: it has no "
+                           "AppleScript actions and opens no app links. Use its own UI (search field, buttons) instead.")
     proc = subprocess.run(["/usr/bin/osascript", "-", *argv], input=script, capture_output=True, text=True, timeout=30)
     if proc.returncode != 0:
         err = proc.stderr.strip()
@@ -104,3 +122,56 @@ def run(app: str, action: str, args=None) -> str:
                                   "Privacy & Security > Automation > Cursor > " + name)
         raise RuntimeError(f"{app}.{action} failed: {err}")
     return proc.stdout.strip() or "ok"
+
+
+# ---------------------------------------------------------------- installed apps (for "did you mean an app?" hints)
+
+APP_DIRS = ["/Applications", "/Applications/Utilities", "/System/Applications", "/System/Applications/Utilities",
+            os.path.expanduser("~/Applications")]
+_installed: tuple[float, list[str]] = (0.0, [])
+
+
+def installed() -> list[str]:
+    """Names of the apps in the usual app folders (and one level of subfolders), cached for a minute."""
+    global _installed
+    if time.monotonic() - _installed[0] < 60:
+        return _installed[1]
+    names: set[str] = set()
+    for d in APP_DIRS:
+        try:
+            entries = os.listdir(d)
+        except OSError:
+            continue
+        for e in entries:
+            if e.endswith(".app"):
+                names.add(e[:-4])
+            elif d == "/Applications" and os.path.isdir(os.path.join(d, e)):
+                try:
+                    names.update(x[:-4] for x in os.listdir(os.path.join(d, e)) if x.endswith(".app"))
+                except OSError:
+                    pass
+    _installed = (time.monotonic(), sorted(names))
+    return _installed[1]
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^0-9a-z]+", "", s.lower())
+
+
+def match_installed(query: str, cutoff: float = 0.85) -> str | None:
+    """The installed app the text most likely names ("conpress" -> "Conpress", "system setings" -> "System
+    Settings"), or None."""
+    q = _norm(query or "")
+    if len(q) < 3:
+        return None
+    names = installed()
+    by_norm = {_norm(n): n for n in names}
+    if q in by_norm:
+        return by_norm[q]
+    close = difflib.get_close_matches(q, list(by_norm), n=1, cutoff=cutoff)
+    return by_norm[close[0]] if close else None
+
+
+def similar_installed(query: str, n: int = 3) -> list[str]:
+    by_norm = {_norm(x): x for x in installed()}
+    return [by_norm[k] for k in difflib.get_close_matches(_norm(query or ""), list(by_norm), n=n, cutoff=0.6)]

@@ -304,3 +304,63 @@ def write_clipboard(text: str) -> None:
     pb = AppKit.NSPasteboard.generalPasteboard()
     pb.clearContents()
     pb.setString_forType_(text, AppKit.NSPasteboardTypeString)
+
+
+# ---------------------------------------------------------------- background: events for one app only
+# CGEventPostToPid hands an event straight to one process: the pointer does not move and the user's keyboard
+# focus stays where it is. Whether an inactive app acts on such events is up to the app, so callers check the
+# result (read the field back, look at the screenshot) instead of assuming it worked.
+
+def key_to_pid(pid: int, combo: str, repeat: int = 1) -> None:
+    mods, code = parse_combo(combo)
+    flags = _flags(mods)
+    for _ in range(max(1, repeat)):
+        for is_down in (True, False):
+            ev = Quartz.CGEventCreateKeyboardEvent(_src(), code, is_down)
+            Quartz.CGEventSetFlags(ev, flags)
+            Quartz.CGEventPostToPid(pid, ev)
+            time.sleep(0.015)
+        time.sleep(0.03)
+
+
+def type_to_pid(pid: int, text: str, delay: float = 0.012) -> None:
+    for ch in text:
+        if ch in "\n\t":
+            key_to_pid(pid, "return" if ch == "\n" else "tab")
+            continue
+        units = len(ch.encode("utf-16-le")) // 2
+        for is_down in (True, False):
+            ev = Quartz.CGEventCreateKeyboardEvent(_src(), 0, is_down)
+            Quartz.CGEventSetFlags(ev, 0)
+            Quartz.CGEventKeyboardSetUnicodeString(ev, units, ch)
+            Quartz.CGEventPostToPid(pid, ev)
+        time.sleep(delay)
+
+
+def click_to_pid(pid: int, x: float, y: float, button: str = "left", count: int = 1,
+                 mods: list[str] | None = None) -> None:
+    if button not in _BUTTONS:
+        raise ValueError("button must be left, right or middle")
+    down, up, _, btn = _BUTTONS[button]
+    flags = _flags(mods or [])
+    for i in range(1, max(1, count) + 1):
+        for etype in (down, up):
+            ev = Quartz.CGEventCreateMouseEvent(_src(), etype, (x, y), btn)
+            Quartz.CGEventSetIntegerValueField(ev, Quartz.kCGMouseEventClickState, i)
+            Quartz.CGEventSetFlags(ev, flags)
+            Quartz.CGEventPostToPid(pid, ev)
+            time.sleep(0.02)
+        time.sleep(0.04)
+
+
+def scroll_to_pid(pid: int, x: float, y: float, direction: str, amount: int = 5) -> None:
+    direction = direction.lower()
+    if direction not in ("up", "down", "left", "right"):
+        raise ValueError("direction must be up, down, left or right")
+    dy = {"up": 80, "down": -80}.get(direction, 0)
+    dx = {"left": 80, "right": -80}.get(direction, 0)
+    for _ in range(max(1, amount)):
+        ev = Quartz.CGEventCreateScrollWheelEvent(_src(), Quartz.kCGScrollEventUnitPixel, 2, dy, dx)
+        Quartz.CGEventSetLocation(ev, (x, y))
+        Quartz.CGEventPostToPid(pid, ev)
+        time.sleep(0.03)

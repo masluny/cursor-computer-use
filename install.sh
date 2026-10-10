@@ -22,10 +22,12 @@ if os.path.exists(path):
     with open(path) as f:
         cfg = json.load(f)  # invalid JSON stops the install rather than overwriting the file
     shutil.copy(path, path + ".bak")
-cfg.setdefault("mcpServers", {})["computer-use"] = {
+old = cfg.setdefault("mcpServers", {}).get("computer-use") or {}
+cfg["mcpServers"]["computer-use"] = {
     "type": "stdio",
     "command": os.path.join(root, ".venv", "bin", "python"),
     "args": ["-m", "cu_mcp"],
+    **({"env": old["env"]} if old.get("env") else {}),  # keep settings and keys (OPENROUTER_API_KEY) on reinstall
 }
 with open(path, "w") as f:
     json.dump(cfg, f, indent=2)

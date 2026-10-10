@@ -14,7 +14,7 @@ import tempfile
 from dataclasses import dataclass
 
 import Quartz
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 MAX_EDGE = int(os.environ.get("CU_MAX_EDGE", "1280"))
 IMAGE_FORMAT = os.environ.get("CU_IMAGE_FORMAT", "jpeg").lower()  # jpeg | png
@@ -59,8 +59,22 @@ def fit_size(width: float, height: float, max_edge: int = MAX_EDGE) -> tuple[int
     return round(width * s), round(height * s)
 
 
+_work: dict = {"display": None}  # display the agent works on; None = the main display
+
+
+def set_work_display(display_id: int | None) -> None:
+    """Background mode points everything (screenshots, coordinates, OCR) at the hidden display."""
+    _work["display"] = display_id
+
+
+def display_bounds():
+    """CGRect of the display the agent works on, in global points."""
+    did = _work["display"]
+    return Quartz.CGDisplayBounds(Quartz.CGMainDisplayID() if did is None else did)
+
+
 def geometry() -> Geometry:
-    b = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
+    b = display_bounds()
     w, h = b.size.width, b.size.height
     img_w, img_h = fit_size(w, h)
     return Geometry(b.origin.x, b.origin.y, w, h, img_w, img_h)
@@ -93,7 +107,7 @@ def cg_image(rect=None, best: bool = True):
     if not FAST_CAPTURE:
         return None
     if rect is None:
-        rect = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
+        rect = display_bounds()
     opt = Quartz.kCGWindowImageBestResolution if best else Quartz.kCGWindowImageNominalResolution
     try:
         img = Quartz.CGWindowListCreateImage(rect, Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID, opt)
@@ -111,9 +125,14 @@ def _to_pil(img) -> Image.Image:
 
 
 def capture(geo: Geometry) -> Image.Image:
-    """Main display, resized to the model's coordinate space."""
+    """The work display (normally the main one), resized to the model's coordinate space."""
     img = cg_image(best=True)
-    im = _to_pil(img).convert("RGB") if img is not None else _screencapture(["-m"])
+    if img is not None:
+        im = _to_pil(img).convert("RGB")
+    elif _work["display"] is None:
+        im = _screencapture(["-m"])
+    else:
+        im = _screencapture([f"-R{geo.origin_x:.0f},{geo.origin_y:.0f},{geo.width_pt:.0f},{geo.height_pt:.0f}"])
     return im.resize((geo.img_w, geo.img_h), Image.Resampling.LANCZOS)
 
 
@@ -141,7 +160,7 @@ def thumb_of(im: Image.Image) -> bytes:
 
 
 def live_thumb() -> bytes | None:
-    """Tiny grayscale frame of the main display for "has anything moved?" checks (~15 ms)."""
+    """Tiny grayscale frame of the work display for "has anything moved?" checks (~15 ms)."""
     img = cg_image(best=False)
     if img is None:
         return None
@@ -161,6 +180,49 @@ def changed_bbox(a: bytes | None, b: bytes | None) -> tuple[int, int, int, int] 
     if not xs:
         return None
     return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+
+
+def fine_changes(a: Image.Image | None, b: Image.Image | None, cell: int = 32,
+                 max_boxes: int = 3) -> list[tuple[int, int, int, int]]:
+    """Areas (image pixels) where two same-size screenshots really differ, merged per neighbouring grid cells, at
+    most max_boxes, biggest first. For the changes a thumbnail averages away: a moved map pin, a changed number.
+    A blinking text caret (a thin line) and the menu bar clock are ignored."""
+    if a is None or b is None or a.size != b.size:
+        return []
+    r, g, bl = ImageChops.difference(a.convert("RGB"), b.convert("RGB")).split()
+    # the strongest channel: a red pin on a blue map barely changes brightness
+    diff = ImageChops.lighter(ImageChops.lighter(r, g), bl).point(lambda v: 255 if v > 24 else 0)
+    w, h = diff.size
+    top = round(h * 0.035)  # menu bar
+    means = diff.reduce(cell)  # average per cell: a quick pass, then an exact look at the cells that moved
+    hot = set()
+    for r in range(means.height):
+        for c in range(means.width):
+            if not means.getpixel((c, r)):
+                continue
+            box = (c * cell, max(r * cell, top), min(w, (c + 1) * cell), min(h, (r + 1) * cell))
+            if box[1] >= box[3]:
+                continue
+            region = diff.crop(box)
+            if region.histogram()[255] >= 6:
+                bb = region.getbbox()
+                if bb and (bb[2] - bb[0] > 3 or bb[3] - bb[1] <= 3):  # not a caret: a 1-3 px wide vertical bar
+                    hot.add((c, r))
+    boxes = []
+    while hot:
+        stack, group = [hot.pop()], []
+        while stack:
+            c, r = stack.pop()
+            group.append((c, r))
+            for n in ((c + 1, r), (c - 1, r), (c, r + 1), (c, r - 1)):
+                if n in hot:
+                    hot.remove(n)
+                    stack.append(n)
+        x0 = min(c for c, _ in group) * cell
+        y0 = min(r for _, r in group) * cell
+        boxes.append((len(group), (x0, y0, min(w, (max(c for c, _ in group) + 1) * cell),
+                                   min(h, (max(r for _, r in group) + 1) * cell))))
+    return [b for _, b in sorted(boxes, key=lambda x: -x[0])[:max_boxes]]
 
 
 def changed_fraction(a: bytes | None, b: bytes | None) -> float:
